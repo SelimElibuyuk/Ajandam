@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Bugünün işleri ve tek dokunuşla ekleme</string>
+    <string name="widget_preview_title">Bugün</string>
+    <string name="widget_preview_row">09:30  Toplantı</string>
+</resources>

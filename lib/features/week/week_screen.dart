@@ -83,6 +83,9 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(weekFocusProvider, (_, focus) {
+      if (focus != null) _openDay(focus.day);
+    });
     final c = context.colors;
     final today = ref.watch(todayProvider);
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();

@@ -6,7 +6,7 @@ Ana ekran widget'ından iki dokunuşta iş eklenen, Google Takvim ile çift yön
 
 ## Durum
 
-Faz 1 tamam: Uygulama internetsiz, tek başına günlük kullanılabilir. Widget (Faz 2) ve Google Takvim (Faz 3) henüz yok.
+Faz 2 tamam: Uygulama internetsiz kullanılabilir, ana ekran widget'ı çalışır. Google Takvim (Faz 3) henüz yok.
 
 Çalışanlar:
 
@@ -16,6 +16,7 @@ Faz 1 tamam: Uygulama internetsiz, tek başına günlük kullanılabilir. Widget
 - Tamamlanmayan görevlerin ertesi güne taşınması
 - Görev ömrü: 2 günde bir hatırlatma, 15 gün sonra silme
 - Yerel hatırlatmalar: Tamamlandı, 10 dk ertele, Yarına taşı, Süreyi uzat
+- Widget: 2×2, 4×2, 4×4; kutudan tamamlama, `+` ile hızlı ekleme
 
 ## Kurulum
 
@@ -70,13 +71,14 @@ dart run build_runner build --delete-conflicting-outputs
 | `lib/domain/` | Saf Dart iş kuralları, Android'e bağımlı değil |
 | `lib/data/` | drift tabloları ve depolar |
 | `lib/notifications/` | Yerel bildirimler ve arka plan işi |
+| `lib/widget_bridge/` | Widget'la veri ve bağlantı köprüsü |
 | `lib/ui/` | Ortak bileşenler |
-| `android/` | Android projesi, widget burada yazılacak |
+| `android/.../widget/` | Glance widget'ı (Kotlin) |
 | `test/` | Birim ve arayüz testleri |
 
 ## Teknoloji
 
-Flutter, Riverpod, go_router, drift (SQLite), flutter_local_notifications, workmanager. Widget Kotlin ve Jetpack Glance ile yazılacak.
+Flutter, Riverpod, go_router, drift (SQLite), flutter_local_notifications, workmanager. Widget Kotlin ve Jetpack Glance ile yazıldı, köprü home_widget.
 
 Arayüz Stitch'teki Nocturne Agenda tasarımını izler. Newsreader, Inter ve JetBrains Mono yazı tipleri (SIL Open Font License) `assets/fonts` içinde gömülüdür.
 

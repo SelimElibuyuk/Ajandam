@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/dates.dart';
 import '../domain/settings.dart';
+import '../features/quick_add/quick_add_dialog.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -24,6 +29,8 @@ const _maintenanceGap = Duration(minutes: 10);
 class _AjandamAppState extends ConsumerState<AjandamApp> {
   late final AppLifecycleListener _lifecycle;
   DateTime _lastMaintenance = DateTime.now();
+  StreamSubscription<Uri?>? _links;
+  bool _quickAddOpen = false;
 
   @override
   void initState() {
@@ -32,16 +39,57 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
       onResume: _catchUp,
       onPause: () => ref.read(itemServiceProvider).flushReplan(),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maintain(rearm: true));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maintain(rearm: true);
+      final links = ref.read(widgetLinksProvider);
+      links.initial().then(_openLink);
+      _links = links.clicks.listen(_openLink);
+    });
   }
 
   @override
   void dispose() {
     _lifecycle.dispose();
+    _links?.cancel();
     super.dispose();
   }
 
+  Future<void> _openLink(Uri? uri) async {
+    if (uri == null || uri.scheme != 'ajandam') return;
+    final router = widget.router ?? appRouter;
+    final date = uri.queryParameters['date'] ?? uri.queryParameters['focus'];
+    final day = date == null ? null : parseDayKey(date);
+    switch (uri.host) {
+      case 'quick-add':
+        await _openQuickAdd(day);
+      case 'week':
+        // Ayarlar gibi üstte kalan ekranlar kapanmazsa Hafta arkada kalır.
+        router.go('/');
+        ref
+            .read(weekFocusProvider.notifier)
+            .show(day ?? ref.read(todayProvider));
+      case 'day':
+        if (date != null) router.push('/day/$date');
+      case 'item':
+        if (uri.pathSegments.isNotEmpty) {
+          router.push('/item/${uri.pathSegments.first}');
+        }
+    }
+  }
+
+  /// Widget'tan eklenince iş bitti demektir, kullanıcı ana ekrana döner.
+  Future<void> _openQuickAdd(DateTime? day) async {
+    final context = rootNavigatorKey.currentContext;
+    if (context == null || _quickAddOpen) return;
+    _quickAddOpen = true;
+    await showQuickAdd(context, day: day, coldStart: true);
+    _quickAddOpen = false;
+    await ref.read(itemServiceProvider).flushReplan();
+    await SystemNavigator.pop();
+  }
+
   void _catchUp() {
+    ref.read(itemServiceProvider).applyWidgetActions();
     ref.read(todayProvider.notifier).refresh();
     if (DateTime.now().difference(_lastMaintenance) > _maintenanceGap) {
       _maintain();

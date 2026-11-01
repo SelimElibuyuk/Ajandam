@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'dates.dart';
 import 'item.dart';
 import 'reminder_planner.dart';
 import 'rollover.dart';
 import 'settings.dart';
+import 'widget_snapshot.dart';
 
 abstract class ItemStore {
   Future<AgendaItem?> byId(String id);
@@ -13,6 +15,9 @@ abstract class ItemStore {
 
   /// Hepsini tek işlemde yazar, listeler bir kez yenilenir.
   Future<void> updateAll(List<AgendaItem> items);
+
+  /// Bu günlerin girdileri ve daha önceden kalan tamamlanmamış görevler.
+  Future<List<AgendaItem>> itemsAround(DateTime first, DateTime last);
 
   /// Silinmemiş ve tamamlanmamış tüm girdiler.
   Future<List<AgendaItem>> openItems();
@@ -38,6 +43,7 @@ const snoozeMinutes = 10;
 
 const _replanDelay = Duration(milliseconds: 400);
 const _rearmDelay = Duration(seconds: 2);
+const _widgetDelay = Duration(milliseconds: 100);
 
 class ItemService {
   ItemService({
@@ -46,6 +52,7 @@ class ItemService {
     required this._reminders,
     required this._newId,
     this._deferReplan = false,
+    this._widget = const NoWidget(),
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
@@ -58,7 +65,9 @@ class ItemService {
   /// Arayüzde bildirimler dokunuşu bekletmez, kısa süre sonra toplu planlanır.
   /// Arka plan işlerinde süreç kapanabileceği için hemen planlanır.
   final bool _deferReplan;
+  final WidgetGateway _widget;
   Timer? _replanTimer;
+  Timer? _widgetTimer;
   bool _rearmPending = false;
 
   Future<AgendaItem> create({
@@ -204,6 +213,7 @@ class ItemService {
   /// Gece taşıma, süresi dolan görevler ve çöp kutusu temizliği.
   /// Kaç kez çalışırsa çalışsın aynı sonucu verir.
   Future<void> runMaintenance({bool rearm = false}) async {
+    await applyWidgetActions();
     final now = _clock();
     final today = dayOnly(now);
     final settings = await _settings.load();
@@ -228,6 +238,11 @@ class ItemService {
 
   /// Bekleyen planlamayı hemen uygular, ör. uygulama arka plana geçerken.
   Future<void> flushReplan() async {
+    final widgetTimer = _widgetTimer;
+    if (widgetTimer != null) {
+      widgetTimer.cancel();
+      await _publishWidget();
+    }
     final timer = _replanTimer;
     if (timer == null) return;
     timer.cancel();
@@ -237,10 +252,55 @@ class ItemService {
     await _applyPlan(rearm: rearm);
   }
 
-  void dispose() => _replanTimer?.cancel();
+  void dispose() {
+    _replanTimer?.cancel();
+    _widgetTimer?.cancel();
+  }
+
+  /// Widget'ta dokunulan kutuları kalıcı kayda işler.
+  Future<void> applyWidgetActions() async {
+    final actions = await _widget.takeActions();
+    if (actions.isEmpty) return;
+    final changed = <AgendaItem>[];
+    for (final action in actions) {
+      final item = await _store.byId(action.id);
+      if (item == null) continue;
+      changed.add(
+        item.copyWith(
+          doneAt: action.done ? action.at : null,
+          updatedAt: action.at,
+        ),
+      );
+    }
+    if (changed.isNotEmpty) await _store.updateAll(changed);
+    await _replan();
+  }
+
+  Future<void> _publishWidget() async {
+    _widgetTimer = null;
+    final now = _clock();
+    final today = dayOnly(now);
+    final settings = await _settings.load();
+    final items = await _store.itemsAround(
+      addDays(today, -1),
+      addDays(today, 7),
+    );
+    await _widget.publish(
+      jsonEncode(
+        buildSnapshot(items, today: today, now: now, settings: settings),
+      ),
+      widgetRefreshTimes(items, now),
+    );
+  }
 
   Future<void> _replan({bool rearm = false}) async {
-    if (!_deferReplan) return _applyPlan(rearm: rearm);
+    if (!_deferReplan) {
+      await _applyPlan(rearm: rearm);
+      await _publishWidget();
+      return;
+    }
+    _widgetTimer?.cancel();
+    _widgetTimer = Timer(_widgetDelay, _publishWidget);
     _rearmPending = _rearmPending || rearm;
     _replanTimer?.cancel();
     _replanTimer = Timer(

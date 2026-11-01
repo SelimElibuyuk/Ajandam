@@ -9,6 +9,7 @@ import '../data/db/app_database.dart';
 import '../data/repositories/item_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../domain/item_service.dart';
+import '../widget_bridge/home_widget_bridge.dart';
 import 'notification_service.dart';
 
 const actionDone = 'done';
@@ -29,6 +30,7 @@ ItemService buildItemService(AppDatabase db) => ItemService(
   settings: SettingsRepository(db),
   reminders: NotificationService.instance,
   newId: const Uuid().v7,
+  widget: const HomeWidgetBridge(),
 );
 
 Future<void> _withService(Future<void> Function(ItemService) work) async {
@@ -60,6 +62,11 @@ Future<void> onNotificationAction(NotificationResponse response) async {
     }
   });
 }
+
+/// Widget'taki kutu uygulama kapalıyken de kalıcı olarak işlenir.
+@pragma('vm:entry-point')
+Future<void> onWidgetAction(Uri? uri) =>
+    _withService((service) => service.applyWidgetActions());
 
 @pragma('vm:entry-point')
 void backgroundDispatcher() {

@@ -23,6 +23,7 @@ class SettingsRepository implements SettingsStore {
       _row('lifecycle_ttl_days', s.lifecycleTtlDays),
       _row('lifecycle_interval_days', s.lifecycleIntervalDays),
       _row('theme', s.theme),
+      _row('widget_body_tap', s.widgetTapMode),
     ]);
   });
 
@@ -47,6 +48,7 @@ class SettingsRepository implements SettingsStore {
         d.lifecycleIntervalDays,
       ),
       theme: values['theme'] ?? d.theme,
+      widgetTapMode: values['widget_body_tap'] ?? d.widgetTapMode,
     );
   }
 }

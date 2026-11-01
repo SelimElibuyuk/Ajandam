@@ -9,6 +9,7 @@ class AppSettings {
     this.lifecycleTtlDays = 15,
     this.lifecycleIntervalDays = 2,
     this.theme = 'dark',
+    this.widgetTapMode = 'week_view',
   });
 
   final int weekStart;
@@ -20,6 +21,9 @@ class AppSettings {
 
   /// system | light | dark
   final String theme;
+
+  /// Widget gövdesine dokununca: quick_add | week_view
+  final String widgetTapMode;
 
   LifecycleRule get lifecycle => LifecycleRule(
     enabled: lifecycleEnabled,
@@ -35,6 +39,7 @@ class AppSettings {
     int? lifecycleTtlDays,
     int? lifecycleIntervalDays,
     String? theme,
+    String? widgetTapMode,
   }) => AppSettings(
     weekStart: weekStart ?? this.weekStart,
     defaultReminderMin: defaultReminderMin ?? this.defaultReminderMin,
@@ -43,5 +48,6 @@ class AppSettings {
     lifecycleTtlDays: lifecycleTtlDays ?? this.lifecycleTtlDays,
     lifecycleIntervalDays: lifecycleIntervalDays ?? this.lifecycleIntervalDays,
     theme: theme ?? this.theme,
+    widgetTapMode: widgetTapMode ?? this.widgetTapMode,
   );
 }

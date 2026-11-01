@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/dates.dart';
@@ -7,9 +8,12 @@ import '../features/item/item_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/settings/trash_screen.dart';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouter = buildRouter();
 
 GoRouter buildRouter() => GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (context, state) => const HomeScreen()),

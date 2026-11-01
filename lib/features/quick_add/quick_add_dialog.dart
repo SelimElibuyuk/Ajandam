@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -9,17 +10,24 @@ import '../../domain/reminder_planner.dart';
 import '../../domain/settings.dart';
 import '../../ui/labels.dart';
 
-Future<void> showQuickAdd(BuildContext context, {DateTime? day}) {
+Future<void> showQuickAdd(
+  BuildContext context, {
+  DateTime? day,
+  bool coldStart = false,
+}) {
   return showDialog<void>(
     context: context,
-    builder: (context) => QuickAddDialog(day: day),
+    builder: (context) => QuickAddDialog(day: day, coldStart: coldStart),
   );
 }
 
 class QuickAddDialog extends ConsumerStatefulWidget {
-  const QuickAddDialog({super.key, this.day});
+  const QuickAddDialog({super.key, this.day, this.coldStart = false});
 
   final DateTime? day;
+
+  /// Widget'tan açılınca pencere odağı geç gelir, klavye yeniden istenir.
+  final bool coldStart;
 
   @override
   ConsumerState<QuickAddDialog> createState() => _QuickAddDialogState();
@@ -43,6 +51,23 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
   void initState() {
     super.initState();
     _controller.addListener(_onChanged);
+    if (widget.coldStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showKeyboard());
+    }
+  }
+
+  /// Pencere odağı Flutter'dan sonra gelir; klavye görünene kadar yeniden ister.
+  Future<void> _showKeyboard() async {
+    for (final wait in const [150, 300, 500, 800, 1200]) {
+      await Future<void>.delayed(Duration(milliseconds: wait));
+      if (!mounted || MediaQuery.viewInsetsOf(context).bottom > 0) return;
+      _focus.unfocus();
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      _focus.requestFocus();
+      await WidgetsBinding.instance.endOfFrame;
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    }
   }
 
   @override

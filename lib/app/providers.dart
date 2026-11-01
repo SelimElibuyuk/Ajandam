@@ -10,7 +10,9 @@ import '../domain/dates.dart';
 import '../domain/item.dart';
 import '../domain/item_service.dart';
 import '../domain/settings.dart';
+import '../domain/widget_snapshot.dart';
 import '../notifications/notification_service.dart';
+import '../widget_bridge/home_widget_bridge.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -30,6 +32,30 @@ final reminderGatewayProvider = Provider<ReminderGateway>(
   (ref) => NotificationService.instance,
 );
 
+final widgetGatewayProvider = Provider<WidgetGateway>(
+  (ref) => const HomeWidgetBridge(),
+);
+
+final widgetLinksProvider = Provider((ref) => const WidgetLinks());
+
+/// Hafta ekranını bir güne getirme isteği, ör. widget'tan gelince.
+class WeekFocus {
+  const WeekFocus(this.day);
+
+  final DateTime day;
+}
+
+class WeekFocusNotifier extends Notifier<WeekFocus?> {
+  @override
+  WeekFocus? build() => null;
+
+  void show(DateTime day) => state = WeekFocus(day);
+}
+
+final weekFocusProvider = NotifierProvider<WeekFocusNotifier, WeekFocus?>(
+  WeekFocusNotifier.new,
+);
+
 final itemServiceProvider = Provider((ref) {
   final service = ItemService(
     store: ref.watch(itemRepositoryProvider),
@@ -37,6 +63,7 @@ final itemServiceProvider = Provider((ref) {
     reminders: ref.watch(reminderGatewayProvider),
     newId: const Uuid().v7,
     deferReplan: true,
+    widget: ref.watch(widgetGatewayProvider),
   );
   ref.onDispose(service.dispose);
   return service;

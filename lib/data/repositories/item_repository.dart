@@ -74,6 +74,10 @@ class ItemRepository implements ItemStore {
   }
 
   @override
+  Future<List<AgendaItem>> itemsAround(DateTime first, DateTime last) =>
+      watchDays(first, last, overdueBefore: first).first;
+
+  @override
   Future<List<AgendaItem>> openItems() async =>
       _map(await _select(_alive & _items.doneAt.isNull()).get());
 

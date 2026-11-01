@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../month/month_screen.dart';
 import '../week/week_screen.dart';
@@ -11,25 +14,39 @@ const _month = 1;
 
 /// Hafta ve Ay'ı taşıyan ana ekran. İki ekran da canlı kalır, yatay kaydırma
 /// her iki yönde de diğerine geçer. Gün bandı kendi kaydırmasını kullanır.
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
+class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _anim = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 220),
   );
   int _page = _month;
+
+  /// Hafta açılışı yavaşlatmasın diye ekran oturunca kurulur.
+  bool _weekBuilt = false;
+  late final Timer _weekTimer = Timer(
+    const Duration(milliseconds: 1500),
+    () => setState(() => _weekBuilt = true),
+  );
   double _dx = 0;
   double _width = 1;
 
   @override
+  void initState() {
+    super.initState();
+    _weekTimer;
+  }
+
+  @override
   void dispose() {
+    _weekTimer.cancel();
     _anim.dispose();
     super.dispose();
   }
@@ -60,7 +77,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    if (!_anim.isAnimating) setState(() => _dx += details.delta.dx);
+    if (_anim.isAnimating) return;
+    setState(() {
+      _weekBuilt = true;
+      _dx += details.delta.dx;
+    });
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -76,7 +97,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _openPage(int page) {
-    if (page != _page && !_anim.isAnimating) _flip(page < _page ? 1 : -1);
+    if (page == _page || _anim.isAnimating) return;
+    setState(() => _weekBuilt = true);
+    _flip(page < _page ? 1 : -1);
   }
 
   Widget _slide(int page, Widget child) {
@@ -97,6 +120,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(weekFocusProvider, (_, _) {
+      setState(() {
+        _weekBuilt = true;
+        _page = _week;
+        _dx = 0;
+      });
+    });
+
     return Scaffold(
       // Metin alanları popup içinde; klavye açılırken ekran yeniden hesaplanmaz.
       resizeToAvoidBottomInset: false,
@@ -113,7 +144,10 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    _slide(_week, const WeekScreen()),
+                    _slide(
+                      _week,
+                      _weekBuilt ? const WeekScreen() : const SizedBox.shrink(),
+                    ),
                     _slide(_month, const MonthScreen()),
                   ],
                 ),

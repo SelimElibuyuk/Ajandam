@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../domain/settings.dart';
 import '../../ui/labels.dart';
+import '../../widget_bridge/home_widget_bridge.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -84,6 +85,17 @@ class SettingsScreen extends ConsumerWidget {
             },
             onChanged: (v) => _update(ref, s.copyWith(theme: v)),
           ),
+          const _Header('Widget'),
+          _Choice<String>(
+            title: 'Widget\'a dokununca',
+            value: s.widgetTapMode,
+            options: const {'week_view': 'Hafta', 'quick_add': 'Hızlı ekleme'},
+            onChanged: (v) => _update(ref, s.copyWith(widgetTapMode: v)),
+          ),
+          ListTile(
+            title: const Text('Ana ekrana widget ekle'),
+            onTap: () => _addWidget(context),
+          ),
           const _Header('Diğer'),
           ListTile(
             leading: const Icon(Icons.delete_outline),
@@ -101,6 +113,20 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _addWidget(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (!await requestPinWidget()) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ana ekranda boş bir yere basılı tut, Widget\'lar bölümünden '
+            'Ajandam\'ı seç.',
+          ),
+        ),
+      );
+    }
   }
 
   void _showBatteryHelp(BuildContext context) {

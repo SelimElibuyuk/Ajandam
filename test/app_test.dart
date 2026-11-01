@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ajandam/app/app.dart';
 import 'package:ajandam/app/providers.dart';
 import 'package:ajandam/app/router.dart';
@@ -6,12 +8,24 @@ import 'package:ajandam/domain/dates.dart';
 import 'package:ajandam/domain/item_service.dart';
 import 'package:ajandam/domain/reminder_planner.dart';
 import 'package:ajandam/domain/week.dart';
+import 'package:ajandam/domain/widget_snapshot.dart';
+import 'package:ajandam/widget_bridge/home_widget_bridge.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+
+class _FakeLinks extends WidgetLinks {
+  final controller = StreamController<Uri?>.broadcast();
+
+  @override
+  Future<Uri?> initial() async => null;
+
+  @override
+  Stream<Uri?> get clicks => controller.stream;
+}
 
 class _NoReminders implements ReminderGateway {
   @override
@@ -24,7 +38,10 @@ class _NoReminders implements ReminderGateway {
 void main() {
   setUpAll(() => initializeDateFormatting('tr'));
 
+  late _FakeLinks links;
+
   Future<void> pumpApp(WidgetTester tester) async {
+    links = _FakeLinks();
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -34,6 +51,8 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           reminderGatewayProvider.overrideWithValue(_NoReminders()),
+          widgetGatewayProvider.overrideWithValue(const NoWidget()),
+          widgetLinksProvider.overrideWithValue(links),
         ],
         child: AjandamApp(router: buildRouter()),
       ),
@@ -181,6 +200,36 @@ void main() {
     await tester.tap(find.text('Bugün'));
     await settle(tester);
     expect(week(), before);
+    await closeApp(tester);
+  });
+
+  testWidgets('Widget bağlantısı Haftayı üstteki ekranın önüne getirir', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await settle(tester);
+    await tester.tap(find.byTooltip('Ayarlar').first);
+    await settle(tester);
+    expect(find.text('Otomatik taşıma'), findsOneWidget);
+
+    links.controller.add(Uri.parse('ajandam://week?focus=2026-11-03'));
+    await settle(tester);
+
+    expect(find.text('Otomatik taşıma'), findsNothing);
+    expect(find.textContaining('HAFTA '), findsOneWidget);
+    await closeApp(tester);
+  });
+
+  testWidgets('Widget bağlantısı girdi ekranını açmaz, gün açar', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await settle(tester);
+
+    links.controller.add(Uri.parse('ajandam://day?date=2026-11-03'));
+    await settle(tester);
+
+    expect(find.text('3 Kasım Salı'), findsOneWidget);
     await closeApp(tester);
   });
 
