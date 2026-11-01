@@ -95,6 +95,15 @@ final weekItemsProvider = StreamProvider.autoDispose
           .watchDays(first, addDays(first, 6));
     });
 
+/// Ay ızgarasının ilk gününe göre görünen tüm günlerin girdileri.
+final monthItemsProvider = StreamProvider.autoDispose
+    .family<List<AgendaItem>, String>((ref, key) {
+      final first = parseDayKey(key);
+      return ref
+          .watch(itemRepositoryProvider)
+          .watchDays(first, addDays(first, 41));
+    });
+
 final itemProvider = StreamProvider.autoDispose.family<AgendaItem?, String>(
   (ref, id) => ref.watch(itemRepositoryProvider).watchItem(id),
 );

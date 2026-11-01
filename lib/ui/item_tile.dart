@@ -3,87 +3,107 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app/providers.dart';
+import '../app/theme.dart';
 import '../domain/dates.dart';
 import '../domain/item.dart';
 
+/// Girdi satırı. [card] kapalıyken hafta çizgisindeki gibi çerçevesiz çizilir.
 class ItemTile extends ConsumerWidget {
-  const ItemTile({super.key, required this.item, required this.now});
+  const ItemTile({
+    super.key,
+    required this.item,
+    required this.now,
+    this.card = true,
+  });
 
   final AgendaItem item;
   final DateTime now;
+  final bool card;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+    final c = context.colors;
+    final finished = item.isFinished(now);
     final overdue = item.isOverdue(now);
-    final color = overdue ? theme.colorScheme.error : null;
+    final timeColor = overdue ? c.danger : (finished ? c.muted : c.accentText);
+    final titleColor = overdue ? c.danger : (finished ? c.muted : c.text);
 
-    return InkWell(
-      onTap: () => context.push('/item/${item.id}'),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Row(
-          children: [
-            if (item.isTask)
-              _DoneBox(
-                done: item.isDone,
-                color: color ?? theme.colorScheme.outline,
-                onTap: () => ref.read(itemServiceProvider).toggleDone(item.id),
-              )
-            else
-              SizedBox(
-                width: 44,
-                child: Center(
-                  child: Container(
-                    width: 3,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-            if (item.start != null)
-              SizedBox(
-                width: 52,
-                child: Text(
-                  hhmm(item.start!),
-                  style: theme.textTheme.bodySmall?.copyWith(color: color),
-                ),
-              ),
-            Expanded(
-              child: Text(
-                item.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: item.isDone ? theme.colorScheme.outline : color,
-                  decoration: item.isDone ? TextDecoration.lineThrough : null,
-                ),
-              ),
+    final row = Row(
+      children: [
+        if (item.isTask)
+          _DoneBox(
+            done: item.isDone,
+            color: overdue ? c.danger : c.muted,
+            onTap: () => ref.read(itemServiceProvider).toggleDone(item.id),
+          )
+        else
+          _EventMark(finished: finished),
+        if (item.start != null)
+          SizedBox(
+            width: 50,
+            child: Text(
+              hhmm(item.start!),
+              style: context.type.labelMedium?.copyWith(color: timeColor),
             ),
-            if (item.important)
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: Icon(
-                  Icons.flag_outlined,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                  semanticLabel: 'Önemli',
-                ),
-              ),
-            if (item.rolledCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: _RolledBadge(count: item.rolledCount),
-              ),
-          ],
+          ),
+        Expanded(
+          child: Text(
+            item.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.type.bodyMedium?.copyWith(
+              color: titleColor,
+              decoration: finished ? TextDecoration.lineThrough : null,
+              decorationColor: c.muted,
+            ),
+          ),
+        ),
+        if (item.important)
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Icon(
+              Icons.flag_outlined,
+              size: 15,
+              color: c.accentText,
+              semanticLabel: 'Önemli',
+            ),
+          ),
+        if (item.rolledCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: _RolledBadge(count: item.rolledCount),
+          ),
+        const SizedBox(width: 8),
+      ],
+    );
+
+    if (!card) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: () => context.push('/item/${item.id}'),
+        child: row,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: c.low,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+          side: BorderSide(color: c.hairline),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(4),
+          onTap: () => context.push('/item/${item.id}'),
+          child: row,
         ),
       ),
     );
   }
 }
+
+const _markWidth = 40.0;
+const _markHeight = 44.0;
 
 class _DoneBox extends StatelessWidget {
   const _DoneBox({
@@ -98,32 +118,70 @@ class _DoneBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.primary;
     return Semantics(
       button: true,
       checked: done,
       label: 'Tamamlandı',
-      child: InkResponse(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        radius: 22,
         child: SizedBox(
-          width: 44,
-          height: 44,
+          width: _markWidth,
+          height: _markHeight,
           child: Center(
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: done ? accent : null,
-                border: Border.all(color: done ? accent : color, width: 1.5),
-              ),
-              child: done
-                  ? const Icon(Icons.check, size: 15, color: Colors.white)
-                  : null,
-            ),
+            child: _Box(filled: done, color: color),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Box extends StatelessWidget {
+  const _Box({required this.filled, required this.color});
+
+  final bool filled;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        color: filled ? c.accent : null,
+        borderRadius: BorderRadius.circular(3),
+        border: filled ? null : Border.all(color: color),
+      ),
+      child: filled ? Icon(Icons.check, size: 13, color: c.onAccent) : null,
+    );
+  }
+}
+
+/// Etkinlik elle tamamlanmaz: Süresi geçince kutu kendiliğinden dolu görünür.
+class _EventMark extends StatelessWidget {
+  const _EventMark({required this.finished});
+
+  final bool finished;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SizedBox(
+      width: _markWidth,
+      height: _markHeight,
+      child: Center(
+        child: finished
+            ? _Box(filled: true, color: c.muted)
+            : Container(
+                width: 3,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: c.accent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
       ),
     );
   }
@@ -136,16 +194,16 @@ class _RolledBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final c = context.colors;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        color: c.container,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         'taşındı $count',
-        style: TextStyle(fontSize: 11, color: scheme.primary),
+        style: context.type.labelSmall?.copyWith(color: c.accentText),
       ),
     );
   }

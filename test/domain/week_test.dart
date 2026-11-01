@@ -28,6 +28,25 @@ void main() {
       expect(days.last, DateTime(2026, 11, 7));
     });
 
+    test('monthGrid ayı tam haftalara tamamlar', () {
+      final days = monthGrid(DateTime(2026, 11));
+
+      expect(days.first, DateTime(2026, 10, 26));
+      expect(days.last, DateTime(2026, 12, 6));
+      expect(days, hasLength(42));
+    });
+
+    test('monthGrid gereksiz satır eklemez', () {
+      expect(monthGrid(DateTime(2027, 2)), hasLength(28));
+      expect(monthGrid(DateTime(2026, 10)), hasLength(35));
+    });
+
+    test('ISO hafta numarası', () {
+      expect(isoWeekNumber(DateTime(2024, 10, 16)), 42);
+      expect(isoWeekNumber(DateTime(2026, 1, 1)), 1);
+      expect(isoWeekNumber(DateTime(2027, 1, 1)), 53);
+    });
+
     test('yaz saati geçişinde günler tekrar etmez', () {
       final days = weekDays(DateTime(2026, 3, 30));
 

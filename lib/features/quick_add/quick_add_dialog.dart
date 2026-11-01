@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
 import '../../domain/dates.dart';
 import '../../domain/nlp_parser.dart';
 import '../../domain/reminder_planner.dart';
@@ -9,24 +10,22 @@ import '../../domain/settings.dart';
 import '../../ui/labels.dart';
 
 Future<void> showQuickAdd(BuildContext context, {DateTime? day}) {
-  return showModalBottomSheet<void>(
+  return showDialog<void>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) => QuickAddSheet(day: day),
+    builder: (context) => QuickAddDialog(day: day),
   );
 }
 
-class QuickAddSheet extends ConsumerStatefulWidget {
-  const QuickAddSheet({super.key, this.day});
+class QuickAddDialog extends ConsumerStatefulWidget {
+  const QuickAddDialog({super.key, this.day});
 
   final DateTime? day;
 
   @override
-  ConsumerState<QuickAddSheet> createState() => _QuickAddSheetState();
+  ConsumerState<QuickAddDialog> createState() => _QuickAddDialogState();
 }
 
-class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
+class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
   final _parser = NlpParser();
   final _focus = FocusNode();
   final _controller = _HighlightController();
@@ -85,7 +84,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
       ? _reminderOverride!.$1
       : settings.defaultReminderMin;
 
-  Future<void> _pickDay() async {
+  Future<bool> _pickDay() async {
     final today = ref.read(todayProvider);
     final picked = await showDatePicker(
       context: context,
@@ -94,7 +93,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
       lastDate: addDays(today, 365 * 5),
     );
     if (picked != null) setState(() => _dayOverride = picked);
-    _focus.requestFocus();
+    return picked != null;
   }
 
   Future<void> _pickTime() async {
@@ -103,6 +102,11 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
       initialTime: _time ?? TimeOfDay.now(),
     );
     if (picked != null) setState(() => _timeOverride = picked);
+  }
+
+  /// Yazmak istemeyenler için tarih, ardından saat seçtirir.
+  Future<void> _pickDayAndTime() async {
+    if (await _pickDay() && mounted) await _pickTime();
     _focus.requestFocus();
   }
 
@@ -146,81 +150,109 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.colors;
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     final today = ref.watch(todayProvider);
-    _controller.highlight = theme.colorScheme.primary;
+    _controller.highlight = c.accentText;
     final time = _time;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        12 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _controller,
-            focusNode: _focus,
-            autofocus: true,
-            maxLength: 200,
-            textCapitalization: TextCapitalization.sentences,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _save(settings),
-            decoration: InputDecoration(
-              hintText: 'yarın 14:00 dişçi',
-              border: InputBorder.none,
-              counterText: '',
-              errorText: _showError ? 'Başlık yaz' : null,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 2,
-                  children: [
-                    _chip(
-                      label: dayLabel(_day, today),
-                      onPressed: _pickDay,
-                      onDeleted: _parsed.date != null
-                          ? () => _disable(ParseField.date)
-                          : null,
-                    ),
-                    _chip(
-                      label: time == null ? 'Saat ekle' : hhmmOf(time),
-                      onPressed: _pickTime,
-                      onDeleted: time != null
-                          ? () => _disable(ParseField.time)
-                          : null,
-                    ),
-                    if (time != null && _parsed.durationMin != null)
-                      _chip(
-                        label: offsetLabel(_parsed.durationMin!),
-                        onDeleted: () => _disable(ParseField.duration),
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focus,
+                    autofocus: true,
+                    maxLength: 200,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _save(settings),
+                    style: context.type.bodyLarge,
+                    decoration: InputDecoration(
+                      hintText: 'yarın 14:00 dişçi',
+                      hintStyle: context.type.bodyLarge?.copyWith(
+                        color: c.muted,
                       ),
-                    if (time != null)
-                      _chip(
-                        label: reminderLabel(_reminder(settings)),
-                        onPressed: () => _pickReminder(_reminder(settings)),
-                      ),
-                  ],
+                      border: InputBorder.none,
+                      counterText: '',
+                      errorText: _showError ? 'Başlık yaz' : null,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: () => _save(settings),
-                child: const Text('Kaydet'),
-              ),
-            ],
-          ),
-        ],
+                IconButton(
+                  tooltip: 'Tarih ve saat seç',
+                  onPressed: _pickDayAndTime,
+                  icon: Icon(
+                    Icons.edit_calendar_outlined,
+                    size: 20,
+                    color: c.accentText,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _chip(
+                  label: dayLabel(_day, today),
+                  onPressed: () async {
+                    await _pickDay();
+                    _focus.requestFocus();
+                  },
+                  onDeleted: _parsed.date != null
+                      ? () => _disable(ParseField.date)
+                      : null,
+                ),
+                _chip(
+                  label: time == null ? 'Saat ekle' : hhmmOf(time),
+                  onPressed: () async {
+                    await _pickTime();
+                    _focus.requestFocus();
+                  },
+                  onDeleted: time != null
+                      ? () => _disable(ParseField.time)
+                      : null,
+                ),
+                if (time != null && _parsed.durationMin != null)
+                  _chip(
+                    label: offsetLabel(_parsed.durationMin!),
+                    onDeleted: () => _disable(ParseField.duration),
+                  ),
+                if (time != null)
+                  _chip(
+                    label: reminderLabel(_reminder(settings)),
+                    onPressed: () => _pickReminder(_reminder(settings)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Vazgeç'),
+                ),
+                const SizedBox(width: 4),
+                FilledButton(
+                  onPressed: () => _save(settings),
+                  child: const Text('Kaydet'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -234,11 +266,9 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
     onPressed: onPressed,
     onDeleted: onDeleted,
     visualDensity: VisualDensity.compact,
+    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
   );
 }
-
-String hhmmOf(TimeOfDay t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 /// Anlaşılan tarih ve saat ifadelerini metnin içinde renklendirir.
 class _HighlightController extends TextEditingController {

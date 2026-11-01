@@ -4,21 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
 import '../../domain/dates.dart';
 import '../../domain/item.dart';
 import '../../ui/item_tile.dart';
 
-/// Bir günün listesi: saatsizler üstte, saatliler altta, şu anki saat çizgisi.
-class DayAgenda extends ConsumerStatefulWidget {
-  const DayAgenda({super.key, required this.day});
+/// Bir günün girdileri. Kaydırma, içine konduğu ekrana aittir.
+class DayList extends ConsumerStatefulWidget {
+  const DayList({super.key, required this.day});
 
   final DateTime day;
 
   @override
-  ConsumerState<DayAgenda> createState() => _DayAgendaState();
+  ConsumerState<DayList> createState() => _DayListState();
 }
 
-class _DayAgendaState extends ConsumerState<DayAgenda> {
+class _DayListState extends ConsumerState<DayList> {
   late DateTime _now = DateTime.now();
   late final Timer _ticker;
 
@@ -41,8 +42,8 @@ class _DayAgendaState extends ConsumerState<DayAgenda> {
   Widget build(BuildContext context) {
     final items = ref.watch(dayItemsProvider(dayKey(widget.day)));
     return items.when(
-      loading: () => const SizedBox.shrink(),
-      error: (error, _) => const Center(child: Text('Liste yüklenemedi.')),
+      loading: () => const SizedBox(height: 48),
+      error: (error, _) => const Text('Liste yüklenemedi.'),
       data: (data) => _build(context, DayGroups.from(data, widget.day)),
     );
   }
@@ -50,38 +51,46 @@ class _DayAgendaState extends ConsumerState<DayAgenda> {
   Widget _build(BuildContext context, DayGroups groups) {
     final today = ref.watch(todayProvider);
     if (groups.isEmpty) {
-      return Center(
-        child: Text(
-          widget.day == today
-              ? 'Bugün boş. + ile ekle'
-              : 'Bu gün boş. + ile ekle',
-          style: Theme.of(context).textTheme.bodyLarge,
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text(
+            widget.day == today ? 'Bugün boş.' : 'Bu gün boş.',
+            style: context.type.bodySmall?.copyWith(
+              color: context.colors.muted,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ),
       );
     }
 
+    final filled = [
+      groups.overdue,
+      groups.untimed,
+      groups.timed,
+    ].where((g) => g.isNotEmpty).length;
     final nowLineAt = widget.day == today
         ? groups.timed.indexWhere((i) => i.start!.isAfter(_now))
         : null;
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 88),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (groups.overdue.isNotEmpty) ...[
           const _Section('Gecikmiş'),
           for (final item in groups.overdue) ItemTile(item: item, now: _now),
         ],
         if (groups.untimed.isNotEmpty) ...[
-          const _Section('Saatsiz'),
+          if (filled > 1) const _Section('Saatsiz'),
           for (final item in groups.untimed) ItemTile(item: item, now: _now),
         ],
         if (groups.timed.isNotEmpty) ...[
-          const _Section('Takvim'),
+          if (filled > 1) const _Section('Takvim'),
           for (var i = 0; i < groups.timed.length; i++) ...[
             if (i == nowLineAt) const _NowLine(),
             ItemTile(item: groups.timed[i], now: _now),
           ],
-          if (nowLineAt == -1) const _NowLine(),
         ],
       ],
     );
@@ -95,14 +104,11 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 2),
+      padding: const EdgeInsets.only(top: 8, bottom: 6),
       child: Text(
         label,
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.outline,
-        ),
+        style: context.type.labelMedium?.copyWith(color: context.colors.muted),
       ),
     );
   }
@@ -114,12 +120,8 @@ class _NowLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Divider(
-        color: Theme.of(context).colorScheme.error,
-        thickness: 1,
-        height: 5,
-      ),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Divider(color: context.colors.accent, height: 1),
     );
   }
 }

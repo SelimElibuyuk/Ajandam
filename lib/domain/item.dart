@@ -52,6 +52,10 @@ class AgendaItem {
   bool get isTimed => start != null;
   bool get isDeleted => deletedAt != null;
 
+  /// Görev elle tamamlanır, etkinlik süresi geçince kendiliğinden biter.
+  bool isFinished(DateTime now) =>
+      isDone || (!isTask && end != null && end!.isBefore(now));
+
   bool isOverdue(DateTime now) {
     if (!isTask || isDone) return false;
     if (start != null) return start!.isBefore(now);

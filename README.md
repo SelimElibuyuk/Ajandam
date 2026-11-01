@@ -10,7 +10,7 @@ Faz 1 tamam: Uygulama internetsiz, tek başına günlük kullanılabilir. Widget
 
 Çalışanlar:
 
-- Bugün ve Hafta ekranları, gün görünümü
+- Ay (açılış) ve Hafta ekranları, gün görünümü
 - Doğal dille hızlı ekleme: `yarın 14:00 dişçi`, `cuma 2 saat sunum`
 - Düzenleme, tamamlama, silme ve çöp kutusu
 - Tamamlanmayan görevlerin ertesi güne taşınması
@@ -77,5 +77,7 @@ dart run build_runner build --delete-conflicting-outputs
 ## Teknoloji
 
 Flutter, Riverpod, go_router, drift (SQLite), flutter_local_notifications, workmanager. Widget Kotlin ve Jetpack Glance ile yazılacak.
+
+Arayüz Stitch'teki Nocturne Agenda tasarımını izler. Newsreader, Inter ve JetBrains Mono yazı tipleri (SIL Open Font License) `assets/fonts` içinde gömülüdür.
 
 Uygulama kimliği: `com.selimelibuyuk.ajandam`

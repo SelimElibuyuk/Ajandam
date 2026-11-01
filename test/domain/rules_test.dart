@@ -241,6 +241,39 @@ void main() {
     });
   });
 
+  group('isFinished', () {
+    final now = DateTime(2026, 11, 3, 12);
+
+    AgendaItem event(DateTime end) => AgendaItem(
+      id: 'e',
+      kind: ItemKind.event,
+      title: 'Sunum',
+      day: DateTime(2026, 11, 3),
+      start: end.subtract(const Duration(hours: 1)),
+      end: end,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+
+    test('etkinlik süresi geçince biter', () {
+      expect(event(DateTime(2026, 11, 3, 11)).isFinished(now), isTrue);
+    });
+
+    test('devam eden etkinlik bitmemiştir', () {
+      expect(event(DateTime(2026, 11, 3, 13)).isFinished(now), isFalse);
+    });
+
+    test('görev süreyle bitmez, elle tamamlanır', () {
+      final item = task(
+        '1',
+        day: DateTime(2026, 11, 3),
+        start: DateTime(2026, 11, 3, 9),
+      );
+      expect(item.isFinished(now), isFalse);
+      expect(item.copyWith(doneAt: now).isFinished(now), isTrue);
+    });
+  });
+
   test('offsetLabel', () {
     expect(offsetLabel(15), '15 dk');
     expect(offsetLabel(60), '1 saat');

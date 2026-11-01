@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
 import '../../domain/settings.dart';
 import '../../ui/labels.dart';
 
@@ -19,83 +20,86 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final s = ref.watch(settingsProvider).value ?? const AppSettings();
 
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          child: Text('Ayarlar', style: theme.textTheme.headlineSmall),
-        ),
-        const _Header('Ajanda'),
-        _Choice<int>(
-          title: 'Hafta başlangıcı',
-          value: s.weekStart,
-          options: const {
-            DateTime.monday: 'Pazartesi',
-            DateTime.sunday: 'Pazar',
-          },
-          onChanged: (v) => _update(ref, s.copyWith(weekStart: v)),
-        ),
-        ListTile(
-          title: const Text('Varsayılan hatırlatma'),
-          subtitle: Text(reminderLabel(s.defaultReminderMin)),
-          onTap: () async {
-            final picked = await pickReminder(context, s.defaultReminderMin);
-            final minutes = picked?.$1;
-            if (minutes != null) {
-              await _update(ref, s.copyWith(defaultReminderMin: minutes));
-            }
-          },
-        ),
-        SwitchListTile(
-          title: const Text('Otomatik taşıma'),
-          subtitle: const Text('Tamamlanmayan görevler ertesi güne geçer'),
-          value: s.autoRollover,
-          onChanged: (v) => _update(ref, s.copyWith(autoRollover: v)),
-        ),
-        const _Header('Görev ömrü'),
-        SwitchListTile(
-          title: const Text('Yapılmayan görevleri sil'),
-          subtitle: const Text('“Önemli” görevler silinmez'),
-          value: s.lifecycleEnabled,
-          onChanged: (v) => _update(ref, s.copyWith(lifecycleEnabled: v)),
-        ),
-        if (s.lifecycleEnabled) ...[
+    return Scaffold(
+      appBar: AppBar(title: const Text('Ayarlar')),
+      body: ListView(
+        children: [
+          const _Header('Ajanda'),
           _Choice<int>(
-            title: 'Silinme süresi',
-            value: s.lifecycleTtlDays,
-            options: const {7: '7 gün', 15: '15 gün', 30: '30 gün'},
-            onChanged: (v) => _update(ref, s.copyWith(lifecycleTtlDays: v)),
+            title: 'Hafta başlangıcı',
+            value: s.weekStart,
+            options: const {
+              DateTime.monday: 'Pazartesi',
+              DateTime.sunday: 'Pazar',
+            },
+            onChanged: (v) => _update(ref, s.copyWith(weekStart: v)),
           ),
-          _Choice<int>(
-            title: 'Hatırlatma aralığı',
-            value: s.lifecycleIntervalDays,
-            options: const {1: 'Her gün', 2: '2 günde bir', 3: '3 günde bir'},
-            onChanged: (v) =>
-                _update(ref, s.copyWith(lifecycleIntervalDays: v)),
+          ListTile(
+            title: const Text('Varsayılan hatırlatma'),
+            subtitle: Text(reminderLabel(s.defaultReminderMin)),
+            onTap: () async {
+              final picked = await pickReminder(context, s.defaultReminderMin);
+              final minutes = picked?.$1;
+              if (minutes != null) {
+                await _update(ref, s.copyWith(defaultReminderMin: minutes));
+              }
+            },
           ),
+          SwitchListTile(
+            title: const Text('Otomatik taşıma'),
+            subtitle: const Text('Tamamlanmayan görevler ertesi güne geçer'),
+            value: s.autoRollover,
+            onChanged: (v) => _update(ref, s.copyWith(autoRollover: v)),
+          ),
+          const _Header('Görev ömrü'),
+          SwitchListTile(
+            title: const Text('Yapılmayan görevleri sil'),
+            subtitle: const Text('“Önemli” görevler silinmez'),
+            value: s.lifecycleEnabled,
+            onChanged: (v) => _update(ref, s.copyWith(lifecycleEnabled: v)),
+          ),
+          if (s.lifecycleEnabled) ...[
+            _Choice<int>(
+              title: 'Silinme süresi',
+              value: s.lifecycleTtlDays,
+              options: const {7: '7 gün', 15: '15 gün', 30: '30 gün'},
+              onChanged: (v) => _update(ref, s.copyWith(lifecycleTtlDays: v)),
+            ),
+            _Choice<int>(
+              title: 'Hatırlatma aralığı',
+              value: s.lifecycleIntervalDays,
+              options: const {1: 'Her gün', 2: '2 günde bir', 3: '3 günde bir'},
+              onChanged: (v) =>
+                  _update(ref, s.copyWith(lifecycleIntervalDays: v)),
+            ),
+          ],
+          const _Header('Görünüm'),
+          _Choice<String>(
+            title: 'Tema',
+            value: s.theme,
+            options: const {
+              'system': 'Sistem',
+              'light': 'Açık',
+              'dark': 'Koyu',
+            },
+            onChanged: (v) => _update(ref, s.copyWith(theme: v)),
+          ),
+          const _Header('Diğer'),
+          ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: const Text('Çöp kutusu'),
+            onTap: () => context.push('/trash'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.battery_alert_outlined),
+            title: const Text('Bildirimler geç mi geliyor?'),
+            onTap: () => _showBatteryHelp(context),
+          ),
+          const SizedBox(height: 16),
+          Center(child: Text('Sürüm 0.1.0', style: theme.textTheme.bodySmall)),
+          const SizedBox(height: 16),
         ],
-        const _Header('Görünüm'),
-        _Choice<String>(
-          title: 'Tema',
-          value: s.theme,
-          options: const {'system': 'Sistem', 'light': 'Açık', 'dark': 'Koyu'},
-          onChanged: (v) => _update(ref, s.copyWith(theme: v)),
-        ),
-        const _Header('Diğer'),
-        ListTile(
-          leading: const Icon(Icons.delete_outline),
-          title: const Text('Çöp kutusu'),
-          onTap: () => context.push('/trash'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.battery_alert_outlined),
-          title: const Text('Bildirimler geç mi geliyor?'),
-          onTap: () => _showBatteryHelp(context),
-        ),
-        const SizedBox(height: 16),
-        Center(child: Text('Sürüm 0.1.0', style: theme.textTheme.bodySmall)),
-        const SizedBox(height: 16),
-      ],
+      ),
     );
   }
 
@@ -133,7 +137,7 @@ class _Header extends StatelessWidget {
       child: Text(
         label,
         style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.primary,
+          color: context.colors.accentText,
         ),
       ),
     );

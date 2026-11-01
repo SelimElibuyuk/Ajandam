@@ -6,7 +6,6 @@ import '../../domain/dates.dart';
 import '../../domain/item.dart';
 import '../../domain/settings.dart';
 import '../../ui/labels.dart';
-import '../quick_add/quick_add_sheet.dart';
 
 class ItemScreen extends ConsumerWidget {
   const ItemScreen({super.key, required this.id});

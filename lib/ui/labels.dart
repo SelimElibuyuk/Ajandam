@@ -12,6 +12,9 @@ String dayLabel(DateTime day, DateTime today) {
   return DateFormat('d MMM EEE', 'tr').format(day);
 }
 
+String hhmmOf(TimeOfDay t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
 String reminderLabel(int? minutes) {
   if (minutes == null) return 'Hatırlatma yok';
   if (minutes == 0) return 'Tam zamanında';

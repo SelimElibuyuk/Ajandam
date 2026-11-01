@@ -8,7 +8,7 @@ class AppSettings {
     this.lifecycleEnabled = true,
     this.lifecycleTtlDays = 15,
     this.lifecycleIntervalDays = 2,
-    this.theme = 'system',
+    this.theme = 'dark',
   });
 
   final int weekStart;
