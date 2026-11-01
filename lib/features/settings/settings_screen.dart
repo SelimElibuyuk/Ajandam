@@ -1,21 +1,172 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-class SettingsScreen extends StatelessWidget {
+import '../../app/providers.dart';
+import '../../domain/settings.dart';
+import '../../ui/labels.dart';
+
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  Future<void> _update(WidgetRef ref, AppSettings next) async {
+    await ref.read(settingsRepositoryProvider).save(next);
+    await ref.read(itemServiceProvider).replan();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final s = ref.watch(settingsProvider).value ?? const AppSettings();
+
+    return ListView(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: Text('Ayarlar', style: theme.textTheme.headlineSmall),
+        ),
+        const _Header('Ajanda'),
+        _Choice<int>(
+          title: 'Hafta başlangıcı',
+          value: s.weekStart,
+          options: const {
+            DateTime.monday: 'Pazartesi',
+            DateTime.sunday: 'Pazar',
+          },
+          onChanged: (v) => _update(ref, s.copyWith(weekStart: v)),
+        ),
+        ListTile(
+          title: const Text('Varsayılan hatırlatma'),
+          subtitle: Text(reminderLabel(s.defaultReminderMin)),
+          onTap: () async {
+            final picked = await pickReminder(context, s.defaultReminderMin);
+            final minutes = picked?.$1;
+            if (minutes != null) {
+              await _update(ref, s.copyWith(defaultReminderMin: minutes));
+            }
+          },
+        ),
+        SwitchListTile(
+          title: const Text('Otomatik taşıma'),
+          subtitle: const Text('Tamamlanmayan görevler ertesi güne geçer'),
+          value: s.autoRollover,
+          onChanged: (v) => _update(ref, s.copyWith(autoRollover: v)),
+        ),
+        const _Header('Görev ömrü'),
+        SwitchListTile(
+          title: const Text('Yapılmayan görevleri sil'),
+          subtitle: const Text('“Önemli” görevler silinmez'),
+          value: s.lifecycleEnabled,
+          onChanged: (v) => _update(ref, s.copyWith(lifecycleEnabled: v)),
+        ),
+        if (s.lifecycleEnabled) ...[
+          _Choice<int>(
+            title: 'Silinme süresi',
+            value: s.lifecycleTtlDays,
+            options: const {7: '7 gün', 15: '15 gün', 30: '30 gün'},
+            onChanged: (v) => _update(ref, s.copyWith(lifecycleTtlDays: v)),
+          ),
+          _Choice<int>(
+            title: 'Hatırlatma aralığı',
+            value: s.lifecycleIntervalDays,
+            options: const {1: 'Her gün', 2: '2 günde bir', 3: '3 günde bir'},
+            onChanged: (v) =>
+                _update(ref, s.copyWith(lifecycleIntervalDays: v)),
+          ),
+        ],
+        const _Header('Görünüm'),
+        _Choice<String>(
+          title: 'Tema',
+          value: s.theme,
+          options: const {'system': 'Sistem', 'light': 'Açık', 'dark': 'Koyu'},
+          onChanged: (v) => _update(ref, s.copyWith(theme: v)),
+        ),
+        const _Header('Diğer'),
+        ListTile(
+          leading: const Icon(Icons.delete_outline),
+          title: const Text('Çöp kutusu'),
+          onTap: () => context.push('/trash'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.battery_alert_outlined),
+          title: const Text('Bildirimler geç mi geliyor?'),
+          onTap: () => _showBatteryHelp(context),
+        ),
+        const SizedBox(height: 16),
+        Center(child: Text('Sürüm 0.1.0', style: theme.textTheme.bodySmall)),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  void _showBatteryHelp(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bildirimler geç mi geliyor?'),
+        content: const Text(
+          'Bazı telefonlar arka plandaki uygulamaları durdurur. Xiaomi için: '
+          'Ayarlar > Uygulamalar > Ajandam bölümünde Otomatik başlatmayı aç, '
+          'Pil tasarrufunu “Kısıtlama yok” yap.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tamam'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header(this.label);
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Ayarlar', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          Text('Sürüm 0.1.0', style: theme.textTheme.bodyMedium),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _Choice<T> extends StatelessWidget {
+  const _Choice({
+    required this.title,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String title;
+  final T value;
+  final Map<T, String> options;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(title),
+      trailing: DropdownButton<T>(
+        value: value,
+        underline: const SizedBox.shrink(),
+        items: [
+          for (final MapEntry(:key, value: label) in options.entries)
+            DropdownMenuItem(value: key, child: Text(label)),
         ],
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
       ),
     );
   }

@@ -17,6 +17,14 @@ ThemeData buildTheme(Brightness brightness) {
       backgroundColor: scheme.surface,
       indicatorColor: scheme.primary.withValues(alpha: 0.14),
     ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: scheme.primary,
+      foregroundColor: scheme.onPrimary,
+      elevation: 0,
+      focusElevation: 0,
+      hoverElevation: 0,
+      highlightElevation: 0,
+    ),
     dividerTheme: DividerThemeData(
       color: scheme.outlineVariant,
       thickness: 0.5,

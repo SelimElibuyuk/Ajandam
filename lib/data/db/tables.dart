@@ -59,6 +59,9 @@ class Items extends Table {
   /// YYYY-MM-DD, görev ömrü sayacının başladığı gün
   TextColumn get lifecycleAnchorDate => text().nullable()();
 
+  /// UTC epoch ms, “10 dk ertele” ile verilen yeni hatırlatma zamanı
+  IntColumn get snoozedUntil => integer().nullable()();
+
   /// RFC 5545 (P1)
   TextColumn get rrule => text().nullable()();
   TextColumn get calendarId => text().nullable().references(Calendars, #id)();

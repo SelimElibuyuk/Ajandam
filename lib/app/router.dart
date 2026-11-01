@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/dates.dart';
+import '../features/item/item_screen.dart';
+import '../features/quick_add/quick_add_sheet.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/settings/trash_screen.dart';
+import '../features/today/day_screen.dart';
 import '../features/today/today_screen.dart';
 import '../features/week/week_screen.dart';
+
+final appRouter = buildRouter();
 
 GoRouter buildRouter() => GoRouter(
   initialLocation: '/today',
@@ -37,6 +44,16 @@ GoRouter buildRouter() => GoRouter(
         ),
       ],
     ),
+    GoRoute(
+      path: '/day/:date',
+      builder: (context, state) =>
+          DayScreen(day: parseDayKey(state.pathParameters['date']!)),
+    ),
+    GoRoute(
+      path: '/item/:id',
+      builder: (context, state) => ItemScreen(id: state.pathParameters['id']!),
+    ),
+    GoRoute(path: '/trash', builder: (context, state) => const TrashScreen()),
   ],
 );
 
@@ -48,7 +65,16 @@ class _Shell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Metin alanları sheet içinde; klavye açılırken liste yeniden hesaplanmaz.
+      resizeToAvoidBottomInset: false,
       body: SafeArea(child: shell),
+      floatingActionButton: shell.currentIndex == 0
+          ? FloatingActionButton(
+              tooltip: 'Ekle',
+              onPressed: () => showQuickAdd(context),
+              child: const Icon(Icons.add),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: shell.currentIndex,
         onDestinationSelected: (index) =>

@@ -1092,6 +1092,17 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _snoozedUntilMeta = const VerificationMeta(
+    'snoozedUntil',
+  );
+  @override
+  late final GeneratedColumn<int> snoozedUntil = GeneratedColumn<int>(
+    'snoozed_until',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _rruleMeta = const VerificationMeta('rrule');
   @override
   late final GeneratedColumn<String> rrule = GeneratedColumn<String>(
@@ -1197,6 +1208,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     color,
     rolledCount,
     lifecycleAnchorDate,
+    snoozedUntil,
     rrule,
     calendarId,
     googleEventId,
@@ -1308,6 +1320,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         lifecycleAnchorDate.isAcceptableOrUnknown(
           data['lifecycle_anchor_date']!,
           _lifecycleAnchorDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('snoozed_until')) {
+      context.handle(
+        _snoozedUntilMeta,
+        snoozedUntil.isAcceptableOrUnknown(
+          data['snoozed_until']!,
+          _snoozedUntilMeta,
         ),
       );
     }
@@ -1434,6 +1455,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         DriftSqlType.string,
         data['${effectivePrefix}lifecycle_anchor_date'],
       ),
+      snoozedUntil: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}snoozed_until'],
+      ),
       rrule: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}rrule'],
@@ -1502,6 +1527,9 @@ class Item extends DataClass implements Insertable<Item> {
   /// YYYY-MM-DD, görev ömrü sayacının başladığı gün
   final String? lifecycleAnchorDate;
 
+  /// UTC epoch ms, “10 dk ertele” ile verilen yeni hatırlatma zamanı
+  final int? snoozedUntil;
+
   /// RFC 5545 (P1)
   final String? rrule;
   final String? calendarId;
@@ -1528,6 +1556,7 @@ class Item extends DataClass implements Insertable<Item> {
     this.color,
     required this.rolledCount,
     this.lifecycleAnchorDate,
+    this.snoozedUntil,
     this.rrule,
     this.calendarId,
     this.googleEventId,
@@ -1569,6 +1598,9 @@ class Item extends DataClass implements Insertable<Item> {
     map['rolled_count'] = Variable<int>(rolledCount);
     if (!nullToAbsent || lifecycleAnchorDate != null) {
       map['lifecycle_anchor_date'] = Variable<String>(lifecycleAnchorDate);
+    }
+    if (!nullToAbsent || snoozedUntil != null) {
+      map['snoozed_until'] = Variable<int>(snoozedUntil);
     }
     if (!nullToAbsent || rrule != null) {
       map['rrule'] = Variable<String>(rrule);
@@ -1623,6 +1655,9 @@ class Item extends DataClass implements Insertable<Item> {
       lifecycleAnchorDate: lifecycleAnchorDate == null && nullToAbsent
           ? const Value.absent()
           : Value(lifecycleAnchorDate),
+      snoozedUntil: snoozedUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snoozedUntil),
       rrule: rrule == null && nullToAbsent
           ? const Value.absent()
           : Value(rrule),
@@ -1668,6 +1703,7 @@ class Item extends DataClass implements Insertable<Item> {
       lifecycleAnchorDate: serializer.fromJson<String?>(
         json['lifecycleAnchorDate'],
       ),
+      snoozedUntil: serializer.fromJson<int?>(json['snoozedUntil']),
       rrule: serializer.fromJson<String?>(json['rrule']),
       calendarId: serializer.fromJson<String?>(json['calendarId']),
       googleEventId: serializer.fromJson<String?>(json['googleEventId']),
@@ -1696,6 +1732,7 @@ class Item extends DataClass implements Insertable<Item> {
       'color': serializer.toJson<String?>(color),
       'rolledCount': serializer.toJson<int>(rolledCount),
       'lifecycleAnchorDate': serializer.toJson<String?>(lifecycleAnchorDate),
+      'snoozedUntil': serializer.toJson<int?>(snoozedUntil),
       'rrule': serializer.toJson<String?>(rrule),
       'calendarId': serializer.toJson<String?>(calendarId),
       'googleEventId': serializer.toJson<String?>(googleEventId),
@@ -1722,6 +1759,7 @@ class Item extends DataClass implements Insertable<Item> {
     Value<String?> color = const Value.absent(),
     int? rolledCount,
     Value<String?> lifecycleAnchorDate = const Value.absent(),
+    Value<int?> snoozedUntil = const Value.absent(),
     Value<String?> rrule = const Value.absent(),
     Value<String?> calendarId = const Value.absent(),
     Value<String?> googleEventId = const Value.absent(),
@@ -1747,6 +1785,7 @@ class Item extends DataClass implements Insertable<Item> {
     lifecycleAnchorDate: lifecycleAnchorDate.present
         ? lifecycleAnchorDate.value
         : this.lifecycleAnchorDate,
+    snoozedUntil: snoozedUntil.present ? snoozedUntil.value : this.snoozedUntil,
     rrule: rrule.present ? rrule.value : this.rrule,
     calendarId: calendarId.present ? calendarId.value : this.calendarId,
     googleEventId: googleEventId.present
@@ -1780,6 +1819,9 @@ class Item extends DataClass implements Insertable<Item> {
       lifecycleAnchorDate: data.lifecycleAnchorDate.present
           ? data.lifecycleAnchorDate.value
           : this.lifecycleAnchorDate,
+      snoozedUntil: data.snoozedUntil.present
+          ? data.snoozedUntil.value
+          : this.snoozedUntil,
       rrule: data.rrule.present ? data.rrule.value : this.rrule,
       calendarId: data.calendarId.present
           ? data.calendarId.value
@@ -1816,6 +1858,7 @@ class Item extends DataClass implements Insertable<Item> {
           ..write('color: $color, ')
           ..write('rolledCount: $rolledCount, ')
           ..write('lifecycleAnchorDate: $lifecycleAnchorDate, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
           ..write('rrule: $rrule, ')
           ..write('calendarId: $calendarId, ')
           ..write('googleEventId: $googleEventId, ')
@@ -1844,6 +1887,7 @@ class Item extends DataClass implements Insertable<Item> {
     color,
     rolledCount,
     lifecycleAnchorDate,
+    snoozedUntil,
     rrule,
     calendarId,
     googleEventId,
@@ -1871,6 +1915,7 @@ class Item extends DataClass implements Insertable<Item> {
           other.color == this.color &&
           other.rolledCount == this.rolledCount &&
           other.lifecycleAnchorDate == this.lifecycleAnchorDate &&
+          other.snoozedUntil == this.snoozedUntil &&
           other.rrule == this.rrule &&
           other.calendarId == this.calendarId &&
           other.googleEventId == this.googleEventId &&
@@ -1896,6 +1941,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<String?> color;
   final Value<int> rolledCount;
   final Value<String?> lifecycleAnchorDate;
+  final Value<int?> snoozedUntil;
   final Value<String?> rrule;
   final Value<String?> calendarId;
   final Value<String?> googleEventId;
@@ -1920,6 +1966,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.color = const Value.absent(),
     this.rolledCount = const Value.absent(),
     this.lifecycleAnchorDate = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
     this.rrule = const Value.absent(),
     this.calendarId = const Value.absent(),
     this.googleEventId = const Value.absent(),
@@ -1945,6 +1992,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.color = const Value.absent(),
     this.rolledCount = const Value.absent(),
     this.lifecycleAnchorDate = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
     this.rrule = const Value.absent(),
     this.calendarId = const Value.absent(),
     this.googleEventId = const Value.absent(),
@@ -1974,6 +2022,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Expression<String>? color,
     Expression<int>? rolledCount,
     Expression<String>? lifecycleAnchorDate,
+    Expression<int>? snoozedUntil,
     Expression<String>? rrule,
     Expression<String>? calendarId,
     Expression<String>? googleEventId,
@@ -2000,6 +2049,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       if (rolledCount != null) 'rolled_count': rolledCount,
       if (lifecycleAnchorDate != null)
         'lifecycle_anchor_date': lifecycleAnchorDate,
+      if (snoozedUntil != null) 'snoozed_until': snoozedUntil,
       if (rrule != null) 'rrule': rrule,
       if (calendarId != null) 'calendar_id': calendarId,
       if (googleEventId != null) 'google_event_id': googleEventId,
@@ -2027,6 +2077,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Value<String?>? color,
     Value<int>? rolledCount,
     Value<String?>? lifecycleAnchorDate,
+    Value<int?>? snoozedUntil,
     Value<String?>? rrule,
     Value<String?>? calendarId,
     Value<String?>? googleEventId,
@@ -2052,6 +2103,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       color: color ?? this.color,
       rolledCount: rolledCount ?? this.rolledCount,
       lifecycleAnchorDate: lifecycleAnchorDate ?? this.lifecycleAnchorDate,
+      snoozedUntil: snoozedUntil ?? this.snoozedUntil,
       rrule: rrule ?? this.rrule,
       calendarId: calendarId ?? this.calendarId,
       googleEventId: googleEventId ?? this.googleEventId,
@@ -2111,6 +2163,9 @@ class ItemsCompanion extends UpdateCompanion<Item> {
         lifecycleAnchorDate.value,
       );
     }
+    if (snoozedUntil.present) {
+      map['snoozed_until'] = Variable<int>(snoozedUntil.value);
+    }
     if (rrule.present) {
       map['rrule'] = Variable<String>(rrule.value);
     }
@@ -2158,6 +2213,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
           ..write('color: $color, ')
           ..write('rolledCount: $rolledCount, ')
           ..write('lifecycleAnchorDate: $lifecycleAnchorDate, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
           ..write('rrule: $rrule, ')
           ..write('calendarId: $calendarId, ')
           ..write('googleEventId: $googleEventId, ')
@@ -3988,6 +4044,7 @@ typedef $$ItemsTableCreateCompanionBuilder = ItemsCompanion Function({
   Value<String?> color,
   Value<int> rolledCount,
   Value<String?> lifecycleAnchorDate,
+  Value<int?> snoozedUntil,
   Value<String?> rrule,
   Value<String?> calendarId,
   Value<String?> googleEventId,
@@ -4013,6 +4070,7 @@ typedef $$ItemsTableUpdateCompanionBuilder = ItemsCompanion Function({
   Value<String?> color,
   Value<int> rolledCount,
   Value<String?> lifecycleAnchorDate,
+  Value<int?> snoozedUntil,
   Value<String?> rrule,
   Value<String?> calendarId,
   Value<String?> googleEventId,
@@ -4139,6 +4197,11 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<String> get lifecycleAnchorDate => $composableBuilder(
     column: $table.lifecycleAnchorDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4305,6 +4368,11 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get rrule => $composableBuilder(
     column: $table.rrule,
     builder: (column) => ColumnOrderings(column),
@@ -4416,6 +4484,11 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<String> get lifecycleAnchorDate => $composableBuilder(
     column: $table.lifecycleAnchorDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
     builder: (column) => column,
   );
 
@@ -4537,6 +4610,7 @@ class $$ItemsTableTableManager
                 Value<String?> color = const Value.absent(),
                 Value<int> rolledCount = const Value.absent(),
                 Value<String?> lifecycleAnchorDate = const Value.absent(),
+                Value<int?> snoozedUntil = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
                 Value<String?> calendarId = const Value.absent(),
                 Value<String?> googleEventId = const Value.absent(),
@@ -4561,6 +4635,7 @@ class $$ItemsTableTableManager
                 color: color,
                 rolledCount: rolledCount,
                 lifecycleAnchorDate: lifecycleAnchorDate,
+                snoozedUntil: snoozedUntil,
                 rrule: rrule,
                 calendarId: calendarId,
                 googleEventId: googleEventId,
@@ -4587,6 +4662,7 @@ class $$ItemsTableTableManager
                 Value<String?> color = const Value.absent(),
                 Value<int> rolledCount = const Value.absent(),
                 Value<String?> lifecycleAnchorDate = const Value.absent(),
+                Value<int?> snoozedUntil = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
                 Value<String?> calendarId = const Value.absent(),
                 Value<String?> googleEventId = const Value.absent(),
@@ -4611,6 +4687,7 @@ class $$ItemsTableTableManager
                 color: color,
                 rolledCount: rolledCount,
                 lifecycleAnchorDate: lifecycleAnchorDate,
+                snoozedUntil: snoozedUntil,
                 rrule: rrule,
                 calendarId: calendarId,
                 googleEventId: googleEventId,

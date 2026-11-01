@@ -1,28 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-class TodayScreen extends StatelessWidget {
+import '../../app/providers.dart';
+import 'day_agenda.dart';
+
+class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final date = DateFormat('d MMMM EEEE', 'tr').format(DateTime.now());
+    final today = ref.watch(todayProvider);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Bugün', style: theme.textTheme.headlineSmall),
-          Text(date, style: theme.textTheme.bodyMedium),
-          Expanded(
-            child: Center(
-              child: Text('Bugün boş.', style: theme.textTheme.bodyLarge),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Bugün', style: theme.textTheme.headlineSmall),
+              Text(
+                DateFormat('d MMMM EEEE', 'tr').format(today),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        Expanded(child: DayAgenda(day: today)),
+      ],
     );
   }
 }
