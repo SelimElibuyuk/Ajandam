@@ -58,6 +58,16 @@ class ItemTile extends ConsumerWidget {
             ),
           ),
         ),
+        if (item.isOccurrence || item.endDay != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Icon(
+              item.isOccurrence ? Icons.repeat : Icons.date_range_outlined,
+              size: 15,
+              color: c.muted,
+              semanticLabel: item.isOccurrence ? 'Tekrarlanıyor' : 'Birkaç gün',
+            ),
+          ),
         if (item.important)
           Padding(
             padding: const EdgeInsets.only(left: 6),

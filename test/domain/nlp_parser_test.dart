@@ -1,4 +1,5 @@
 import 'package:ajandam/domain/nlp_parser.dart';
+import 'package:ajandam/domain/recurrence.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -261,6 +262,372 @@ void main() {
     test('başka günde geçmiş saat kaymaz', () {
       final base = DateTime(2026, 11, 8);
       expect(p('09:00 koşu').resolveDay(base, now), base);
+    });
+  });
+
+  group('saat aralığı', () {
+    test('iki nokta ile', () {
+      final r = p('14:00-16:00 toplantı');
+      expect(r.title, 'toplantı');
+      expectTime(r, 14);
+      expect(r.durationMin, 120);
+      expect(r.isEvent, isTrue);
+    });
+
+    test('saat 3-5 öğleden sonradır', () {
+      final r = p('saat 3-5 ders');
+      expectTime(r, 15);
+      expect(r.durationMin, 120);
+      expect(r.title, 'ders');
+    });
+
+    test('ten ya kadar', () {
+      final r = p("yarın 14'ten 16:30'a kadar sınav");
+      expectTime(r, 14);
+      expect(r.durationMin, 150);
+      expect(r.title, 'sınav');
+    });
+
+    test('ile arası', () {
+      final r = p('9 ile 11 arası kahvaltı');
+      expectTime(r, 9);
+      expect(r.durationMin, 120);
+    });
+
+    test('akşam 7-9', () {
+      final r = p('akşam 7-9 sinema');
+      expectTime(r, 19);
+      expect(r.durationMin, 120);
+    });
+
+    test('sayı aralığı saat sanılmaz', () {
+      final r = p('3-4 sayfa oku');
+      expect(r.hour, isNull);
+      expect(r.title, '3-4 sayfa oku');
+    });
+
+    test('gece yarısını geçen aralık', () {
+      final r = p('22:00-01:00 nöbet');
+      expectTime(r, 22);
+      expect(r.durationMin, 180);
+    });
+  });
+
+  group('tekrar', () {
+    test('kullanıcının örneği', () {
+      final r = p('her hafta cuma saat 5 de 14 mart tarihine kadar spor');
+      expect(r.title, 'spor');
+      expectTime(r, 17);
+      expect(
+        r.recurrence,
+        Recurrence(
+          Frequency.weekly,
+          weekdays: const {DateTime.friday},
+          until: DateTime(2027, 3, 14),
+        ),
+      );
+      expect(r.resolveDay(now, now), DateTime(2026, 11, 6));
+    });
+
+    test('her gün', () {
+      final r = p('her gün 9:00 ilaç');
+      expect(r.recurrence, const Recurrence(Frequency.daily));
+      expect(r.title, 'ilaç');
+      expect(r.resolveDay(now, now), DateTime(2026, 11, 4));
+    });
+
+    test('her sabah 8de', () {
+      final r = p("her sabah 8'de yürüyüş");
+      expect(r.recurrence, const Recurrence(Frequency.daily));
+      expectTime(r, 8);
+      expect(r.title, 'yürüyüş');
+    });
+
+    test('hafta içi her gün', () {
+      final r = p('hafta içi her gün 8:30 servis');
+      expect(r.recurrence!.isWeekdays, isTrue);
+      expectTime(r, 8, 30);
+    });
+
+    test('birden çok gün ve saat aralığı', () {
+      final r = p('her salı ve perşembe 18:00-19:30 spor');
+      expect(r.recurrence!.weekdays, {DateTime.tuesday, DateTime.thursday});
+      expect(r.durationMin, 90);
+      expect(r.title, 'spor');
+      // Bugün salı ve saat geçmedi.
+      expect(r.resolveDay(now, now), DateTime(2026, 11, 3));
+    });
+
+    test('cumaları', () {
+      final r = p('cumaları halı saha');
+      expect(r.recurrence!.weekdays, {DateTime.friday});
+      expect(r.title, 'halı saha');
+    });
+
+    test('iki haftada bir', () {
+      final r = p('2 haftada bir pazartesi temizlik');
+      expect(r.recurrence!.interval, 2);
+      expect(r.recurrence!.weekdays, {DateTime.monday});
+      expect(r.title, 'temizlik');
+    });
+
+    test('gün aşırı', () {
+      expect(p('gün aşırı koşu').recurrence!.interval, 2);
+    });
+
+    test('her ayın 5i', () {
+      final r = p("her ayın 5'i kira");
+      expect(r.recurrence, const Recurrence(Frequency.monthly));
+      expect(r.date, DateTime(2026, 11, 5));
+      expect(r.title, 'kira');
+    });
+
+    test('her yıl', () {
+      final r = p('her yıl 12 mart doğum günü');
+      expect(r.recurrence, const Recurrence(Frequency.yearly));
+      expect(r.date, DateTime(2027, 3, 12));
+      expect(r.title, 'doğum günü');
+    });
+
+    test('ay sonuna kadar', () {
+      final r = p('her gün ay sonuna kadar antibiyotik');
+      expect(r.recurrence!.until, DateTime(2026, 11, 30));
+      expect(r.title, 'antibiyotik');
+    });
+
+    test('kapatılınca tekrar anlaşılmaz', () {
+      final r = p('her gün ilaç', disabled: {ParseField.repeat});
+      expect(r.recurrence, isNull);
+      expect(r.title, 'her gün ilaç');
+    });
+  });
+
+  group('kadar', () {
+    test('tekrar yoksa son gün olur', () {
+      final r = p('cumaya kadar rapor');
+      expect(r.date, DateTime(2026, 11, 6));
+      expect(r.title, 'rapor');
+    });
+  });
+
+  group('gün aralığı', () {
+    test('5-10 kasım', () {
+      final r = p('5-10 kasım tatil');
+      expect(r.date, DateTime(2026, 11, 5));
+      expect(r.endDate, DateTime(2026, 11, 10));
+      expect(r.title, 'tatil');
+      expect(r.isEvent, isTrue);
+    });
+
+    test('ay atlayan aralık', () {
+      final r = p('28 aralık - 3 ocak kayak');
+      expect(r.date, DateTime(2026, 12, 28));
+      expect(r.endDate, DateTime(2027, 1, 3));
+    });
+
+    test('dan a kadar', () {
+      final r = p('5 kasımdan 10 kasıma kadar fuar');
+      expect(r.endDate, DateTime(2026, 11, 10));
+      expect(r.title, 'fuar');
+    });
+
+    test('pazartesiden cumaya kadar', () {
+      final r = p('pazartesiden cumaya kadar kurs');
+      expect(r.date, DateTime(2026, 11, 9));
+      expect(r.endDate, DateTime(2026, 11, 13));
+    });
+
+    test('saatli aralık her gün tekrarlanır', () {
+      final r = p('5-10 kasım 9-17 arası kurs');
+      expect(r.endDate, isNull);
+      expect(
+        r.recurrence,
+        Recurrence(Frequency.daily, until: DateTime(2026, 11, 10)),
+      );
+      expect(r.date, DateTime(2026, 11, 5));
+      expectTime(r, 9);
+      expect(r.durationMin, 8 * 60);
+    });
+  });
+
+  group('süreli tekrar', () {
+    Recurrence? rule(ParsedInput r) => r.recurrenceFrom(r.resolveDay(now, now));
+
+    test('4 hafta boyunca her gün', () {
+      final r = p('4 hafta boyunca her gün 9:00 ilaç');
+      expect(r.title, 'ilaç');
+      expect(r.resolveDay(now, now), DateTime(2026, 11, 4));
+      expect(
+        rule(r),
+        Recurrence(Frequency.daily, until: DateTime(2026, 12, 1)),
+      );
+    });
+
+    test('1 ayın her günü', () {
+      final r = p('1 ayın her günü vitamin');
+      expect(r.title, 'vitamin');
+      expect(
+        rule(r),
+        Recurrence(Frequency.daily, until: DateTime(2026, 12, 2)),
+      );
+    });
+
+    test('tek başına süre her gün demektir', () {
+      final r = p('2 hafta boyunca antibiyotik');
+      expect(r.title, 'antibiyotik');
+      expect(rule(r)!.frequency, Frequency.daily);
+      expect(rule(r)!.until, DateTime(2026, 11, 16));
+    });
+
+    test('bir ay süreyle her pazartesi', () {
+      final r = p('bir ay süreyle her pazartesi fizik tedavi');
+      expect(r.title, 'fizik tedavi');
+      expect(r.resolveDay(now, now), DateTime(2026, 11, 9));
+      expect(rule(r)!.weekdays, {DateTime.monday});
+      expect(rule(r)!.until, DateTime(2026, 12, 8));
+    });
+
+    test('önümüzdeki 10 gün her sabah 8de', () {
+      final r = p("önümüzdeki 10 gün her sabah 8'de yürüyüş");
+      expect(r.title, 'yürüyüş');
+      expectTime(r, 8);
+      expect(rule(r)!.until, DateTime(2026, 11, 13));
+    });
+
+    test('10 kez', () {
+      final r = p('her salı 10 kez kurs');
+      expect(r.title, 'kurs');
+      expect(rule(r)!.until, DateTime(2027, 1, 5));
+    });
+
+    test('tekrar yoksa kez sayısı başlıkta kalır', () {
+      final r = p('3 kez ara');
+      expect(r.recurrence, isNull);
+      expect(r.title, '3 kez ara');
+    });
+
+    test('yazılan bitiş tarihi önceliklidir', () {
+      final r = p('her gün 14 mart tarihine kadar ilaç');
+      expect(rule(r)!.until, DateTime(2027, 3, 14));
+    });
+  });
+
+  group('eklenen ifadeler', () {
+    Recurrence? rule(ParsedInput r) => r.recurrenceFrom(r.resolveDay(now, now));
+
+    test('yalın saat aralığı', () {
+      final r = p('14-16 ders');
+      expectTime(r, 14);
+      expect(r.durationMin, 120);
+      expect(r.title, 'ders');
+      expect(p('9-17 iş').durationMin, 8 * 60);
+    });
+
+    test('birimli sayı aralığı saat değildir', () {
+      expect(p('10-12 sayfa oku').hour, isNull);
+      expect(p('8-10 kişi yemek').hour, isNull);
+    });
+
+    test('günde kaç kez tekrar sayısı değildir', () {
+      final r = p('her gün 5 defa su iç');
+      expect(rule(r), const Recurrence(Frequency.daily));
+      expect(r.title, '5 defa su iç');
+    });
+
+    test('pazar alışverişi gün değildir', () {
+      final r = p('cumaları pazar alışverişi');
+      expect(r.title, 'pazar alışverişi');
+      expect(r.resolveDay(now, now), DateTime(2026, 11, 6));
+      expect(p('pazar alışverişi').date, isNull);
+    });
+
+    test('ay adı sonuna kadar', () {
+      final r = p('her gün mart sonuna kadar ilaç');
+      expect(rule(r)!.until, DateTime(2027, 3, 31));
+      expect(r.title, 'ilaç');
+      expect(
+        rule(p('her gün bu ayın sonuna kadar ilaç'))!.until,
+        DateTime(2026, 11, 30),
+      );
+    });
+
+    test('itibaren', () {
+      final r = p('yarından itibaren her gün ilaç');
+      expect(r.resolveDay(now, now), DateTime(2026, 11, 4));
+      expect(r.title, 'ilaç');
+
+      final week = p('pazartesiden itibaren 4 hafta boyunca her gün koşu');
+      expect(week.resolveDay(now, now), DateTime(2026, 11, 9));
+      expect(rule(week)!.until, DateTime(2026, 12, 6));
+      expect(week.title, 'koşu');
+
+      final friday = p('10 kasımdan başlayarak her cuma yüzme');
+      expect(friday.resolveDay(now, now), DateTime(2026, 11, 13));
+      expect(friday.title, 'yüzme');
+
+      expect(
+        p('gelecek aydan itibaren her pazartesi').resolveDay(now, now),
+        DateTime(2026, 12, 7),
+      );
+    });
+  });
+
+  group('konuşma dilinde saatler', () {
+    void expectRange(String text, String title, int h, int m, int? minutes) {
+      final r = p(text);
+      expect(r.title, title, reason: text);
+      expect([r.hour, r.minute], [h, m], reason: text);
+      expect(r.durationMin, minutes, reason: text);
+    }
+
+    test('ve, ila, la bağlaçları', () {
+      expectRange('yarın 10 ve 11 arasında toplantı', 'toplantı', 10, 0, 60);
+      expectRange('saat 10 ve 11 arasında toplantı', 'toplantı', 10, 0, 60);
+      expectRange('10:30 ve 12:00 arasında sınav', 'sınav', 10, 30, 90);
+      expectRange("10'la 11 arası ders", 'ders', 10, 0, 60);
+      expectRange('10 ila 11 arasında ders', 'ders', 10, 0, 60);
+      expectRange('saat 10 ile saat 11 arası ders', 'ders', 10, 0, 60);
+      expectRange('saat 10 ile 11 saatleri arasında ders', 'ders', 10, 0, 60);
+    });
+
+    test('saat günün bölümünden önce', () {
+      expectRange('saat gece 10 film', 'film', 22, 0, null);
+      expectRange("saat gece 10'da film", 'film', 22, 0, null);
+      expectRange('saat akşam 7 ile 9 arası yemek', 'yemek', 19, 0, 120);
+    });
+
+    test('aralıkta buçuk ve iki tarafta günün bölümü', () {
+      expectRange('10 buçuk ile 11 arası ders', 'ders', 10, 30, 30);
+      expectRange("saat 10 buçuktan 12'ye kadar ders", 'ders', 10, 30, 90);
+      expectRange("sabah 9'dan öğlen 12'ye kadar kurs", 'kurs', 9, 0, 180);
+    });
+
+    test('çeyrek geçe, çeyrek var, dakika kala', () {
+      expectRange("saat 10'u çeyrek geçe arama", 'arama', 10, 15, null);
+      expectRange("11'e çeyrek var arama", 'arama', 10, 45, null);
+      expectRange("akşam 7'ye 10 kala yemek", 'yemek', 18, 50, null);
+      expectRange("3'ü 20 geçe toplantı", 'toplantı', 15, 20, null);
+    });
+
+    test('gece yarısı', () {
+      expectRange('gece yarısı ilaç', 'ilaç', 0, 0, null);
+    });
+
+    test('yazıyla saat', () {
+      expectRange('saat on bir toplantı', 'toplantı', 11, 0, null);
+      expectRange('saat on birde toplantı', 'toplantı', 11, 0, null);
+      expectRange('saat beşte çay', 'çay', 17, 0, null);
+      expectRange('sabah dokuzda koşu', 'koşu', 9, 0, null);
+      expectRange('akşam dokuz buçukta film', 'film', 21, 30, null);
+      expect(p('akşam bir şey al').hour, isNull);
+      expect(p('akşam bir şey al').title, 'akşam bir şey al');
+    });
+
+    test('ve ile gün aralığı', () {
+      final r = p('5 ve 10 kasım arasında tatil');
+      expect(r.date, DateTime(2026, 11, 5));
+      expect(r.endDate, DateTime(2026, 11, 10));
+      expect(r.title, 'tatil');
     });
   });
 }

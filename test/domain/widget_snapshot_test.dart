@@ -5,6 +5,7 @@ import 'package:ajandam/data/repositories/item_repository.dart';
 import 'package:ajandam/data/repositories/settings_repository.dart';
 import 'package:ajandam/domain/item.dart';
 import 'package:ajandam/domain/item_service.dart';
+import 'package:ajandam/domain/palettes.dart';
 import 'package:ajandam/domain/reminder_planner.dart';
 import 'package:ajandam/domain/settings.dart';
 import 'package:ajandam/domain/widget_snapshot.dart';
@@ -91,9 +92,38 @@ void main() {
       ]);
 
       final items = dayItems(s, '2026-11-03');
-      expect(items.first['id'], 'saatli');
+      expect(items.map((i) => i['id']), ['saatli', 'saatsiz', 'bitti']);
       expect(items.first['time'], '14:00');
       expect((s['days'] as List)[1]['remaining'], 2);
+    });
+
+    test('bitenler saatli olsa da en alta iner', () {
+      final s = snapshot([
+        _item(
+          'biten etkinlik',
+          day: today,
+          kind: ItemKind.event,
+          start: DateTime(2026, 11, 3, 8),
+          end: DateTime(2026, 11, 3, 9),
+        ),
+        _item(
+          'biten görev',
+          day: today,
+          start: DateTime(2026, 11, 3, 7),
+          doneAt: now,
+        ),
+        _item('saatsiz', day: today),
+        _item('öğlen', day: today, start: DateTime(2026, 11, 3, 12)),
+        _item('akşam', day: today, start: DateTime(2026, 11, 3, 19)),
+      ]);
+
+      expect(dayItems(s, '2026-11-03').map((i) => i['id']), [
+        'öğlen',
+        'akşam',
+        'saatsiz',
+        'biten görev',
+        'biten etkinlik',
+      ]);
     });
 
     test('eski tamamlanmamış görev bugüne gelir, gerçek günü korunur', () {
@@ -115,6 +145,42 @@ void main() {
       expect(s['tapMode'], 'week_view');
       expect(s['theme'], 'light');
     });
+
+    test('tema renkleri ve widget görünümü widget\'a taşınır', () {
+      final s = buildSnapshot(
+        const [],
+        today: today,
+        now: now,
+        settings: const AppSettings(widgetOpacity: 80, widgetRadius: 8),
+      );
+
+      expect(s['palette'], 'nocturne');
+      final colors = s['colors'] as Map<String, dynamic>;
+      expect((colors['dark'] as Map)['surface'], '#FF121316');
+      expect((colors['light'] as Map)['accent'], '#FF4A6FA5');
+      expect(s['widgetStyle'], {'opacity': 80, 'radius': 8});
+    });
+
+    test(
+      'tema ve widget ayarları kaydedilir, bilinmeyen tema Nocturne olur',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        final repo = SettingsRepository(db);
+        await repo.save(
+          const AppSettings(
+            palette: 'orman',
+            widgetOpacity: 60,
+            widgetRadius: 24,
+          ),
+        );
+        final loaded = await repo.load();
+        expect(loaded.palette, 'orman');
+        expect(loaded.widgetOpacity, 60);
+        expect(loaded.widgetRadius, 24);
+        expect(paletteById(loaded.palette).id, 'nocturne');
+      },
+    );
 
     test('uzun başlık kısaltılır, boyut sınırı aşılmaz', () {
       final items = [

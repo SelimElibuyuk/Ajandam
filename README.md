@@ -12,6 +12,9 @@ Faz 2 tamam: Uygulama internetsiz kullanılabilir, ana ekran widget'ı çalış�
 
 - Ay (açılış) ve Hafta ekranları, gün görünümü
 - Doğal dille hızlı ekleme: `yarın 14:00 dişçi`, `cuma 2 saat sunum`
+- Etkinlikler: `14:00-16:00 toplantı`, `saat 3-5 ders`, `5-10 kasım tatil`; hızlı eklemede Görev/Etkinlik düğmesi
+- Tekrarlar: `her gün 9:00 ilaç`, `hafta içi her gün 8:30 servis`, `her salı ve perşembe 18:00-19:30 spor`, `2 haftada bir cuma`, `her ayın 5'i kira`, `her yıl 12 mart doğum günü`; bitiş için `14 mart tarihine kadar`, `mart sonuna kadar`, `4 hafta boyunca`, `1 ayın her günü`, `önümüzdeki 10 gün`, `10 kez`; başlangıç için `yarından itibaren`, `10 kasımdan başlayarak`. Tekrarlanan görev kaçırılırsa kendi gününde kalır. Düzenleme ve silmede “Yalnızca bu / Bu ve sonrakiler” sorulur
+- Sesle ekleme: hızlı ekleme penceresinde ve widget'ta mikrofon düğmesi; parça parça söylenebilir, her parça sona eklenir. Mikrofona yeniden basınca, Kaydet'e basınca veya 8 saniye sessizlikte durur; kaydetmek elle yapılır
 - Düzenleme, tamamlama, silme ve çöp kutusu
 - Tamamlanmayan görevlerin ertesi güne taşınması
 - Görev ömrü: 2 günde bir hatırlatma, 15 gün sonra silme

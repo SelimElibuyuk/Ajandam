@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Telefonun duvar kağıdından gelen renkler (koyu mod) -->
+    <color name="ic_launcher_background">@android:color/system_accent1_800</color>
+    <color name="ic_logo_page">@android:color/system_accent1_300</color>
+    <color name="ic_logo_ring">@android:color/system_accent1_100</color>
+</resources>

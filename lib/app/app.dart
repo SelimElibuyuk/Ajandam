@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/dates.dart';
+import '../domain/palettes.dart';
 import '../domain/settings.dart';
 import '../features/quick_add/quick_add_dialog.dart';
 import 'providers.dart';
@@ -37,7 +38,10 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
     super.initState();
     _lifecycle = AppLifecycleListener(
       onResume: _catchUp,
-      onPause: () => ref.read(itemServiceProvider).flushReplan(),
+      onPause: () {
+        ref.read(itemServiceProvider).flushReplan();
+        ref.read(habitServiceProvider).flush();
+      },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maintain(rearm: true);
@@ -61,7 +65,7 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
     final day = date == null ? null : parseDayKey(date);
     switch (uri.host) {
       case 'quick-add':
-        await _openQuickAdd(day);
+        await _openQuickAdd(day, voice: uri.queryParameters['voice'] == '1');
       case 'week':
         // Ayarlar gibi üstte kalan ekranlar kapanmazsa Hafta arkada kalır.
         router.go('/');
@@ -74,15 +78,20 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
         if (uri.pathSegments.isNotEmpty) {
           router.push('/item/${uri.pathSegments.first}');
         }
+      case 'habit':
+        router.go('/');
+        ref
+            .read(selectedHabitProvider.notifier)
+            .select(uri.pathSegments.isEmpty ? null : uri.pathSegments.first);
     }
   }
 
   /// Widget'tan eklenince iş bitti demektir, kullanıcı ana ekrana döner.
-  Future<void> _openQuickAdd(DateTime? day) async {
+  Future<void> _openQuickAdd(DateTime? day, {bool voice = false}) async {
     final context = rootNavigatorKey.currentContext;
     if (context == null || _quickAddOpen) return;
     _quickAddOpen = true;
-    await showQuickAdd(context, day: day, coldStart: true);
+    await showQuickAdd(context, day: day, coldStart: true, voice: voice);
     _quickAddOpen = false;
     await ref.read(itemServiceProvider).flushReplan();
     await SystemNavigator.pop();
@@ -90,6 +99,7 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
 
   void _catchUp() {
     ref.read(itemServiceProvider).applyWidgetActions();
+    ref.read(habitServiceProvider).applyWidgetActions();
     ref.read(todayProvider.notifier).refresh();
     if (DateTime.now().difference(_lastMaintenance) > _maintenanceGap) {
       _maintain();
@@ -99,18 +109,21 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
   void _maintain({bool rearm = false}) {
     _lastMaintenance = DateTime.now();
     ref.read(itemServiceProvider).runMaintenance(rearm: rearm);
+    final habits = ref.read(habitServiceProvider);
+    habits.applyWidgetActions().then((_) => habits.publishWidget());
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen(todayProvider, (_, _) => _maintain());
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
+    final palette = paletteById(settings.palette);
 
     return MaterialApp.router(
       title: 'Ajandam',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.light),
-      darkTheme: buildTheme(Brightness.dark),
+      theme: buildTheme(Brightness.light, palette: palette),
+      darkTheme: buildTheme(Brightness.dark, palette: palette),
       themeMode: switch (settings.theme) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,

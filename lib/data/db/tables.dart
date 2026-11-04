@@ -32,6 +32,7 @@ class Calendars extends Table {
 @TableIndex(name: 'items_start_at', columns: {#startAt})
 @TableIndex(name: 'items_google_event_id', columns: {#googleEventId})
 @TableIndex(name: 'items_updated_at', columns: {#updatedAt})
+@TableIndex(name: 'items_series_id', columns: {#seriesId})
 class Items extends Table {
   /// uuid v7
   TextColumn get id => text()();
@@ -48,6 +49,9 @@ class Items extends Table {
 
   /// YYYY-MM-DD, tüm gün girdiler ve saatsiz görevler için
   TextColumn get date => text().nullable()();
+
+  /// YYYY-MM-DD, birkaç gün süren tüm gün etkinliğin son günü
+  TextColumn get endDate => text().nullable()();
   TextColumn get timezone => text().nullable()();
   IntColumn get doneAt => integer().nullable()();
 
@@ -62,8 +66,13 @@ class Items extends Table {
   /// UTC epoch ms, “10 dk ertele” ile verilen yeni hatırlatma zamanı
   IntColumn get snoozedUntil => integer().nullable()();
 
-  /// RFC 5545 (P1)
+  /// RFC 5545 RRULE, yalnızca serinin kendisinde dolu
   TextColumn get rrule => text().nullable()();
+
+  /// Tamamlanan, değiştirilen veya silinen tekrar: serisi ve asıl günü.
+  /// Kimliği `seriId~YYYY-MM-DD` biçimindedir.
+  TextColumn get seriesId => text().nullable()();
+  TextColumn get originalDate => text().nullable()();
   TextColumn get calendarId => text().nullable().references(Calendars, #id)();
   TextColumn get googleEventId => text().nullable()();
   TextColumn get googleEtag => text().nullable()();
@@ -102,6 +111,43 @@ class SyncQueue extends Table {
 
   @override
   String get tableName => 'sync_queue';
+}
+
+/// Ajandadan ayrı izlenen alışkanlıklar; Google'a yazılmaz.
+@DataClassName('HabitRow')
+class Habits extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text().withLength(min: 1, max: 200)();
+
+  /// Virgülle ayrılmış haftanın günleri (1 = pazartesi); null ise her gün.
+  TextColumn get weekdays => text().nullable()();
+
+  /// Günlük hedef sayı; null ise yaptım/yapmadım.
+  IntColumn get target => integer().nullable()();
+  IntColumn get color => integer().withDefault(const Constant(0))();
+
+  /// YYYY-MM-DD
+  TextColumn get startDate => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Alışkanlığın bir günde yapılan sayısı; satırı olmayan gün yapılmamıştır.
+@DataClassName('HabitLogRow')
+class HabitLogs extends Table {
+  TextColumn get habitId => text().references(Habits, #id)();
+
+  /// YYYY-MM-DD
+  TextColumn get date => text()();
+  IntColumn get count => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {habitId, date};
 }
 
 class Settings extends Table {

@@ -70,4 +70,109 @@ void main() {
 
     expect(rows.map((r) => r.op), ['create', 'update', 'delete']);
   });
+
+  test('sürüm 1 veritabanı yükseltilir, girdiler kalır', () async {
+    final fresh = AppDatabase(NativeDatabase.memory());
+    final ddl = [
+      for (final row
+          in await fresh
+              .customSelect(
+                "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL "
+                "AND name NOT IN ('items_series_id', 'sqlite_sequence', "
+                "'habits', 'habit_logs')",
+              )
+              .get())
+        row
+            .read<String>('sql')
+            .replaceAll(
+              RegExp(r',\s*"(end_date|series_id|original_date)" TEXT NULL'),
+              '',
+            ),
+    ];
+    await fresh.close();
+    expect(ddl.any((sql) => sql.contains('series_id')), isFalse);
+
+    final old = AppDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          for (final sql in ddl) {
+            raw.execute(sql);
+          }
+          raw.execute(
+            "INSERT INTO items (id, kind, title, date, created_at, updated_at) "
+            "VALUES ('eski', 'task', 'Market', '2026-11-20', 1, 1)",
+          );
+          raw.execute('PRAGMA user_version = 1');
+        },
+      ),
+    );
+    await old
+        .into(old.items)
+        .insert(
+          _task('yeni').copyWith(
+            seriesId: const Value('seri'),
+            originalDate: const Value('2026-11-21'),
+          ),
+        );
+
+    final rows = await old.select(old.items).get();
+    expect(rows.map((r) => r.title), ['Market', 'Dişçi']);
+    expect(rows.last.seriesId, 'seri');
+    await old.close();
+  });
+
+  test('sürüm 2 veritabanına alışkanlık tabloları eklenir', () async {
+    final fresh = AppDatabase(NativeDatabase.memory());
+    final ddl = [
+      for (final row
+          in await fresh
+              .customSelect(
+                "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL "
+                "AND name NOT IN ('sqlite_sequence', 'habits', 'habit_logs')",
+              )
+              .get())
+        row.read<String>('sql'),
+    ];
+    await fresh.close();
+
+    final old = AppDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          for (final sql in ddl) {
+            raw.execute(sql);
+          }
+          raw.execute(
+            "INSERT INTO items (id, kind, title, date, created_at, updated_at) "
+            "VALUES ('eski', 'task', 'Market', '2026-11-20', 1, 1)",
+          );
+          raw.execute('PRAGMA user_version = 2');
+        },
+      ),
+    );
+    await old
+        .into(old.habits)
+        .insert(
+          HabitsCompanion.insert(
+            id: 'h',
+            title: 'Su',
+            startDate: '2026-11-20',
+            createdAt: 1,
+            updatedAt: 1,
+          ),
+        );
+    await old
+        .into(old.habitLogs)
+        .insert(
+          HabitLogsCompanion.insert(
+            habitId: 'h',
+            date: '2026-11-20',
+            count: 1,
+            updatedAt: 1,
+          ),
+        );
+
+    expect((await old.select(old.items).get()).single.title, 'Market');
+    expect((await old.select(old.habitLogs).get()).single.count, 1);
+    await old.close();
+  });
 }

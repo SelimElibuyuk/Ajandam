@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="habit_widget_label">Alışkanlık zinciri</string>
+    <string name="habit_widget_description">Bir alışkanlığın son günleri; bugüne dokunup işaretle</string>
+    <string name="habit_widget_preview_title">Su iç</string>
+
+    <!-- Widget önizlemesindeki zincir halkaları; RemoteViews düz View'ı kabul etmez, FrameLayout ile çizilir -->
+    <style name="HabitPreviewDone">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_margin">2dp</item>
+        <item name="android:background">#5FA37A</item>
+    </style>
+
+    <style name="HabitPreviewEmpty" parent="HabitPreviewDone">
+        <item name="android:background">#1F1F23</item>
+    </style>
+
+    <!--
+        Seçim penceresi uygulamanın üstünde boş bir ekran açmasın. DayNight tabanı sayesinde
+        AlertDialog sistemin açık/koyu iletişim kutusu temasını alır, tam ekran açılmaz.
+    -->
+    <style name="HabitConfigTheme" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+</resources>

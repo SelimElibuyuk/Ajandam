@@ -5,10 +5,12 @@ import 'package:ajandam/app/providers.dart';
 import 'package:ajandam/app/router.dart';
 import 'package:ajandam/data/db/app_database.dart';
 import 'package:ajandam/domain/dates.dart';
+import 'package:ajandam/domain/habit_service.dart';
 import 'package:ajandam/domain/item_service.dart';
 import 'package:ajandam/domain/reminder_planner.dart';
 import 'package:ajandam/domain/week.dart';
 import 'package:ajandam/domain/widget_snapshot.dart';
+import 'package:ajandam/voice/voice_input.dart';
 import 'package:ajandam/widget_bridge/home_widget_bridge.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +29,35 @@ class _FakeLinks extends WidgetLinks {
   Stream<Uri?> get clicks => controller.stream;
 }
 
+class _FakeVoice implements VoiceInput {
+  VoiceText? onText;
+  void Function()? onDone;
+  bool listening = false;
+  int starts = 0;
+
+  @override
+  Future<bool> start({
+    required VoiceText onText,
+    required void Function() onDone,
+    required void Function(VoiceError error) onError,
+  }) async {
+    this.onText = onText;
+    this.onDone = onDone;
+    listening = true;
+    starts++;
+    return true;
+  }
+
+  @override
+  Future<void> stop() async => listening = false;
+
+  /// Bir cümle söylenir, Android oturumu kapatır.
+  void say(String text) {
+    onText!(text, true);
+    onDone!();
+  }
+}
+
 class _NoReminders implements ReminderGateway {
   @override
   Future<void> replaceAll(
@@ -39,9 +70,11 @@ void main() {
   setUpAll(() => initializeDateFormatting('tr'));
 
   late _FakeLinks links;
+  late _FakeVoice voice;
 
   Future<void> pumpApp(WidgetTester tester) async {
     links = _FakeLinks();
+    voice = _FakeVoice();
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -52,7 +85,9 @@ void main() {
           databaseProvider.overrideWithValue(db),
           reminderGatewayProvider.overrideWithValue(_NoReminders()),
           widgetGatewayProvider.overrideWithValue(const NoWidget()),
+          habitWidgetProvider.overrideWithValue(const NoHabitWidget()),
           widgetLinksProvider.overrideWithValue(links),
+          voiceInputProvider.overrideWithValue(voice),
         ],
         child: AjandamApp(router: buildRouter()),
       ),
@@ -113,6 +148,75 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     expect(find.text('dişçi'), findsOneWidget);
     expect(find.text('Bugün boş.'), findsNothing);
+    await closeApp(tester);
+  });
+
+  testWidgets('Popup tekrarlı etkinliği kaydeder', (tester) async {
+    await pumpApp(tester);
+    await settle(tester);
+
+    await openQuickAdd(tester);
+    await tester.enterText(find.byType(TextField), 'her gün 23:58 ilaç');
+    await tester.pump();
+    expect(find.text('Her gün'), findsOneWidget);
+    expect(find.text('Görev'), findsOneWidget);
+
+    await tester.tap(find.text('Görev'));
+    await tester.pump();
+    expect(find.text('Etkinlik'), findsOneWidget);
+
+    await tester.tap(find.text('Kaydet'));
+    await settle(tester);
+
+    expect(find.text('ilaç'), findsOneWidget);
+    expect(find.byIcon(Icons.repeat), findsOneWidget);
+    await closeApp(tester);
+  });
+
+  testWidgets('Sesle yazılan metin anlaşılır ve kaydedilir', (tester) async {
+    await pumpApp(tester);
+    await settle(tester);
+
+    await openQuickAdd(tester);
+    await tester.tap(find.byTooltip('Sesle yaz'));
+    await tester.pump();
+    expect(voice.listening, isTrue);
+    expect(find.text('Dinliyorum…'), findsOneWidget);
+
+    voice.say('bugün 23:59 dişçi');
+    await tester.pump();
+    expect(find.text('23:59'), findsOneWidget);
+
+    // Duraklamadan sonra dinleme sürer, ikinci parça sona eklenir.
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(voice.starts, 2);
+    expect(find.byTooltip('Dinlemeyi durdur'), findsOneWidget);
+    voice.say('kontrolü');
+    await tester.pump();
+    expect(find.text('bugün 23:59 dişçi kontrolü'), findsOneWidget);
+
+    await tester.tap(find.text('Kaydet'));
+    await settle(tester);
+    expect(voice.listening, isFalse);
+    expect(find.text('dişçi kontrolü'), findsOneWidget);
+    await closeApp(tester);
+  });
+
+  testWidgets('Widget mikrofonu pencereyi dinlerken açar', (tester) async {
+    await pumpApp(tester);
+    await settle(tester);
+
+    links.controller.add(
+      Uri.parse('ajandam://quick-add?date=2026-11-03&voice=1'),
+    );
+    await settle(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(voice.listening, isTrue);
+    voice.say('kitap oku');
+    await tester.pump();
+    expect(find.text('kitap oku'), findsOneWidget);
     await closeApp(tester);
   });
 
@@ -244,6 +348,33 @@ void main() {
 
     expect(find.text('Bu gün boş.'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Bugün'), findsOneWidget);
+    await closeApp(tester);
+  });
+
+  testWidgets('Alışkanlık eklenir, takvimi işaretlenir, ajandayı karıştırmaz', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('Alışkanlık ekle'));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), 'Su iç');
+    await tester.pump();
+    await tester.tap(find.text('Kaydet'));
+    await settle(tester);
+
+    expect(find.text('Bugün yapılmadı'), findsOneWidget);
+    expect(find.text('Hızlı görev ekle (ör. 15:30 Arama)'), findsOneWidget);
+    await tester.tap(find.text('Bugün yapılmadı'));
+    await settle(tester);
+    expect(find.text('Bugün yapıldı'), findsOneWidget);
+    expect(find.text('1 gün'), findsNWidgets(2));
+
+    await tester.tap(find.text('Ajanda'));
+    await settle(tester);
+    expect(find.text('Bugün boş.'), findsOneWidget);
+    expect(find.text('Bugün yapıldı'), findsNothing);
     await closeApp(tester);
   });
 }

@@ -2,7 +2,6 @@ package com.selimelibuyuk.ajandam.widget
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
-import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -68,11 +67,23 @@ private val SMALL = DpSize(110.dp, 110.dp)
 private val MEDIUM = DpSize(250.dp, 110.dp)
 private val LARGE = DpSize(250.dp, 250.dp)
 
-private const val ROW_HEIGHT = 34
-private const val COMPACT_ROW_HEIGHT = 28
-private const val HEADER_HEIGHT = 44
-private const val PLUS_CLEARANCE = 40
+private const val ROW_PADDING = 2
+private const val PLUS_SIZE = 40
+private const val PLUS_CLEARANCE = 48
 private const val FOOTER_ID = -1L
+
+/** Satır ölçüleri; 3-5 kelimelik işler ekranda rahat okunsun diye büyük tutulur. */
+private class Metrics(
+    val titleSize: Float,
+    val timeSize: Float,
+    val markWidth: Float,
+    val boxSize: Float,
+    val markHeight: Float,
+    val sidePadding: Float,
+)
+
+private val wideMetrics = Metrics(17f, 14f, 38f, 22f, 40f, 28f)
+private val compactMetrics = Metrics(16f, 16f, 34f, 21f, 38f, 22f)
 
 private val turkish = Locale.forLanguageTag("tr")
 private val dayFormat = DateTimeFormatter.ofPattern("d MMMM", turkish)
@@ -80,41 +91,6 @@ private val fullDayFormat = DateTimeFormatter.ofPattern("EEEE, d MMMM", turkish)
 private val weekdayFormat = DateTimeFormatter.ofPattern("EEEE", turkish)
 
 private val itemIdKey = ActionParameters.Key<String>("itemId")
-
-private class Palette(
-    val surface: Color,
-    val text: Color,
-    val soft: Color,
-    val muted: Color,
-    val accent: Color,
-    val accentText: Color,
-    val onAccent: Color,
-    val danger: Color,
-)
-
-private val darkPalette =
-    Palette(
-        surface = Color(0xFF121316),
-        text = Color(0xFFE3E2E6),
-        soft = Color(0xFFC3C6D1),
-        muted = Color(0xFF8D919A),
-        accent = Color(0xFF4A6FA5),
-        accentText = Color(0xFFA7C8FF),
-        onAccent = Color(0xFFEDF1FF),
-        danger = Color(0xFFFFB4AB),
-    )
-
-private val lightPalette =
-    Palette(
-        surface = Color(0xFFF6F5F1),
-        text = Color(0xFF1B1C1F),
-        soft = Color(0xFF43474F),
-        muted = Color(0xFF6E727B),
-        accent = Color(0xFF4A6FA5),
-        accentText = Color(0xFF395F94),
-        onAccent = Color(0xFFFFFFFF),
-        danger = Color(0xFFB3261E),
-    )
 
 /** Eklentinin alıcısı runBlocking ile ana iş parçacığını kilitlediği için kullanılmaz. */
 class AjandamWidgetReceiver : GlanceAppWidgetReceiver() {
@@ -163,7 +139,7 @@ private fun Content(context: Context, snapshot: Snapshot) {
     val now = System.currentTimeMillis()
     val items = snapshot.itemsFor(today, now)
     val remaining = items.count { !it.isFinished(now) }
-    val colors = paletteFor(context, snapshot.theme)
+    val colors = snapshot.appearance.palette(context)
     val quickAdd = "ajandam://quick-add?date=$today"
     val bodyLink = if (snapshot.tapMode == "quick_add") quickAdd else "ajandam://week?focus=$today"
     val body = actionStartActivity<MainActivity>(context, Uri.parse(bodyLink))
@@ -173,8 +149,8 @@ private fun Content(context: Context, snapshot: Snapshot) {
         modifier =
             GlanceModifier.fillMaxSize()
                 .appWidgetBackground()
-                .background(colors.surface)
-                .cornerRadius(16.dp)
+                .background(snapshot.appearance.background(context))
+                .cornerRadius(snapshot.appearance.radius.dp)
                 .clickable(body),
     ) {
         if (size.width < MEDIUM.width) {
@@ -186,18 +162,38 @@ private fun Content(context: Context, snapshot: Snapshot) {
             modifier = GlanceModifier.fillMaxSize().padding(10.dp),
             contentAlignment = Alignment.BottomEnd,
         ) {
-            Box(
-                modifier =
-                    GlanceModifier.size(34.dp)
-                        .background(colors.accent)
-                        .cornerRadius(10.dp)
-                        .clickable(actionStartActivity<MainActivity>(context, Uri.parse(quickAdd))),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "+",
-                    style = TextStyle(color = ColorProvider(colors.onAccent), fontSize = 20.sp),
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier =
+                        GlanceModifier.size(PLUS_SIZE.dp)
+                            .background(colors.accentSoft)
+                            .cornerRadius(10.dp)
+                            .clickable(
+                                actionStartActivity<MainActivity>(context, Uri.parse("$quickAdd&voice=1")),
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.widget_mic),
+                        contentDescription = "Sesle ekle",
+                        colorFilter = ColorFilter.tint(ColorProvider(colors.accentText)),
+                        modifier = GlanceModifier.size(22.dp),
+                    )
+                }
+                Spacer(GlanceModifier.width(8.dp))
+                Box(
+                    modifier =
+                        GlanceModifier.size(PLUS_SIZE.dp)
+                            .background(colors.accent)
+                            .cornerRadius(10.dp)
+                            .clickable(actionStartActivity<MainActivity>(context, Uri.parse(quickAdd))),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "+",
+                        style = TextStyle(color = ColorProvider(colors.onAccent), fontSize = 24.sp),
+                    )
+                }
             }
         }
     }
@@ -210,7 +206,7 @@ private fun SmallContent(
     today: LocalDate,
     now: Long,
     remaining: Int,
-    colors: Palette,
+    colors: WidgetPalette,
     body: Action,
 ) {
     Column(modifier = GlanceModifier.fillMaxSize().padding(12.dp, 10.dp, 10.dp, 0.dp)) {
@@ -225,14 +221,14 @@ private fun SmallContent(
                 style =
                     TextStyle(
                         color = ColorProvider(colors.text),
-                        fontSize = 16.sp,
+                        fontSize = 18.sp,
                         fontFamily = FontFamily.Serif,
                     ),
             )
             if (remaining > 0) {
                 Text(
                     "$remaining",
-                    style = TextStyle(color = ColorProvider(colors.accentText), fontSize = 12.sp),
+                    style = TextStyle(color = ColorProvider(colors.accentText), fontSize = 15.sp),
                 )
             }
         }
@@ -248,7 +244,7 @@ private fun WideContent(
     today: LocalDate,
     now: Long,
     remaining: Int,
-    colors: Palette,
+    colors: WidgetPalette,
     body: Action,
 ) {
     Column(modifier = GlanceModifier.fillMaxSize().padding(14.dp, 12.dp, 14.dp, 0.dp)) {
@@ -263,13 +259,13 @@ private fun WideContent(
                 style =
                     TextStyle(
                         color = ColorProvider(colors.text),
-                        fontSize = 17.sp,
+                        fontSize = 19.sp,
                         fontFamily = FontFamily.Serif,
                     ),
             )
             Text(
                 remainingLabel(remaining, items.isEmpty()),
-                style = TextStyle(color = ColorProvider(colors.muted), fontSize = 11.sp),
+                style = TextStyle(color = ColorProvider(colors.muted), fontSize = 13.sp),
             )
         }
         Spacer(GlanceModifier.height(4.dp))
@@ -283,19 +279,22 @@ private fun ItemList(
     context: Context,
     items: List<WidgetItem>,
     now: Long,
-    colors: Palette,
+    colors: WidgetPalette,
     body: Action,
     compact: Boolean,
 ) {
-    val rowHeight = if (compact) COMPACT_ROW_HEIGHT else ROW_HEIGHT
-    val available = LocalSize.current.height.value - HEADER_HEIGHT
+    val metrics = if (compact) compactMetrics else wideMetrics
+    val size = LocalSize.current
+    val scale = context.resources.configuration.fontScale
+    val header = 16 + 26 * scale
+    val needed = items.sumOf { rowHeight(it, metrics, size.width.value, scale, compact).toDouble() }
     when {
         items.isEmpty() ->
             Text(
                 "Bugün boş.",
-                style = TextStyle(color = ColorProvider(colors.muted), fontSize = 13.sp),
+                style = TextStyle(color = ColorProvider(colors.muted), fontSize = 15.sp),
             )
-        items.size * rowHeight <= available - PLUS_CLEARANCE ->
+        needed <= size.height.value - header - PLUS_CLEARANCE ->
             items.forEach { item -> ItemRow(context, item, now, colors, compact) }
         else ->
             LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
@@ -312,12 +311,31 @@ private fun ItemList(
     }
 }
 
+private fun rowTitle(item: WidgetItem, compact: Boolean): String =
+    if (compact && item.time != null) "${item.time} ${item.title}" else item.title
+
+private fun timeWidth(metrics: Metrics, scale: Float): Float = 3.8f * metrics.timeSize * scale
+
+/** Başlık iki satıra taşabilir; tahmin cömert tutulur ki sığmayan liste kaymadan kesilmesin. */
+private fun rowHeight(
+    item: WidgetItem,
+    metrics: Metrics,
+    width: Float,
+    scale: Float,
+    compact: Boolean,
+): Float {
+    val time = if (item.time != null && !compact) timeWidth(metrics, scale) else 0f
+    val textWidth = width - metrics.sidePadding - metrics.markWidth - time
+    val lines = if (rowTitle(item, compact).length * 0.55f * metrics.titleSize * scale > textWidth) 2 else 1
+    return maxOf(metrics.markHeight, lines * metrics.titleSize * scale * 1.35f) + 2 * ROW_PADDING
+}
+
 @Composable
 private fun ItemRow(
     context: Context,
     item: WidgetItem,
     now: Long,
-    colors: Palette,
+    colors: WidgetPalette,
     compact: Boolean,
 ) {
     val finished = item.isFinished(now)
@@ -329,31 +347,33 @@ private fun ItemRow(
             else -> colors.text
         }
     val open = actionStartActivity<MainActivity>(context, Uri.parse("ajandam://item/${item.id}"))
+    val metrics = if (compact) compactMetrics else wideMetrics
+    val scale = context.resources.configuration.fontScale
 
     Row(
-        modifier = GlanceModifier.fillMaxWidth().height((if (compact) COMPACT_ROW_HEIGHT else ROW_HEIGHT).dp).clickable(open),
+        modifier = GlanceModifier.fillMaxWidth().padding(vertical = ROW_PADDING.dp).clickable(open),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Mark(item, finished, overdue, colors, if (compact) 26.dp else 32.dp)
+        Mark(item, finished, overdue, colors, metrics)
         if (item.time != null && !compact) {
             Text(
                 item.time,
-                modifier = GlanceModifier.width(46.dp),
+                modifier = GlanceModifier.width(timeWidth(metrics, scale).dp),
                 style =
                     TextStyle(
                         color = ColorProvider(if (overdue) colors.danger else colors.accentText),
-                        fontSize = 11.sp,
+                        fontSize = metrics.timeSize.sp,
                         fontFamily = FontFamily.Monospace,
                     ),
             )
         }
         Text(
-            if (compact && item.time != null) "${item.time} ${item.title}" else item.title,
-            maxLines = 1,
+            rowTitle(item, compact),
+            maxLines = 2,
             style =
                 TextStyle(
                     color = ColorProvider(titleColor),
-                    fontSize = if (compact) 12.sp else 14.sp,
+                    fontSize = metrics.titleSize.sp,
                     fontWeight = FontWeight.Normal,
                     textDecoration = if (finished) TextDecoration.LineThrough else null,
                 ),
@@ -366,11 +386,12 @@ private fun Mark(
     item: WidgetItem,
     finished: Boolean,
     overdue: Boolean,
-    colors: Palette,
-    width: androidx.compose.ui.unit.Dp,
+    colors: WidgetPalette,
+    metrics: Metrics,
 ) {
     val tint = if (overdue) colors.danger else if (finished) colors.accent else colors.muted
-    val base = GlanceModifier.width(width).height(30.dp)
+    val base = GlanceModifier.width(metrics.markWidth.dp).height(metrics.markHeight.dp)
+    val box = GlanceModifier.size(metrics.boxSize.dp)
     if (item.isTask) {
         Box(
             modifier =
@@ -383,7 +404,7 @@ private fun Mark(
                 provider = ImageProvider(if (item.done) R.drawable.widget_box_done else R.drawable.widget_box),
                 contentDescription = if (item.done) "Tamamlandı" else "Tamamla",
                 colorFilter = ColorFilter.tint(ColorProvider(tint)),
-                modifier = GlanceModifier.size(17.dp),
+                modifier = box,
             )
         }
     } else {
@@ -393,12 +414,12 @@ private fun Mark(
                     provider = ImageProvider(R.drawable.widget_box_done),
                     contentDescription = "Bitti",
                     colorFilter = ColorFilter.tint(ColorProvider(colors.accent)),
-                    modifier = GlanceModifier.size(17.dp),
+                    modifier = box,
                 )
             } else {
                 Box(
                     modifier =
-                        GlanceModifier.padding(start = 6.dp).width(3.dp).height(16.dp).background(colors.accent),
+                        GlanceModifier.padding(start = 8.dp).width(3.dp).height(20.dp).background(colors.accent),
                 ) {}
             }
         }
@@ -411,17 +432,6 @@ private fun remainingLabel(remaining: Int, empty: Boolean): String =
         remaining == 0 -> "Hepsi bitti"
         else -> "$remaining iş kaldı"
     }
-
-private fun paletteFor(context: Context, theme: String): Palette {
-    val nightMask = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-    val dark =
-        when (theme) {
-            "light" -> false
-            "dark" -> true
-            else -> nightMask == Configuration.UI_MODE_NIGHT_YES
-        }
-    return if (dark) darkPalette else lightPalette
-}
 
 /** Kutuya dokununca ekran hemen değişir, kalıcı kaydı arka planda Dart yapar. */
 class ToggleDoneAction : ActionCallback {

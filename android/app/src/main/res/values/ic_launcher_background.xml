@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12 öncesi: Nocturne, arka plan şeffaf -->
+    <color name="ic_launcher_background">#00000000</color>
+    <color name="ic_logo_page">#4A6FA5</color>
+    <color name="ic_logo_ring">#A7C8FF</color>
+</resources>

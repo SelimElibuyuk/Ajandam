@@ -19,6 +19,8 @@ class LifecycleRule {
       !item.isDone &&
       !item.isDeleted &&
       !item.important &&
+      item.recurrence == null &&
+      !item.isOccurrence &&
       item.anchorDay != null;
 
   DateTime expiryDay(AgendaItem item) => addDays(item.anchorDay!, ttlDays);

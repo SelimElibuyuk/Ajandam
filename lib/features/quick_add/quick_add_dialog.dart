@@ -5,29 +5,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../domain/dates.dart';
+import '../../domain/item.dart';
 import '../../domain/nlp_parser.dart';
+import '../../domain/recurrence.dart';
 import '../../domain/reminder_planner.dart';
 import '../../domain/settings.dart';
 import '../../ui/labels.dart';
+import '../../ui/recurrence_picker.dart';
+import '../../voice/dictation.dart';
+import '../../voice/voice_input.dart';
 
 Future<void> showQuickAdd(
   BuildContext context, {
   DateTime? day,
   bool coldStart = false,
+  bool voice = false,
 }) {
   return showDialog<void>(
     context: context,
-    builder: (context) => QuickAddDialog(day: day, coldStart: coldStart),
+    builder: (context) =>
+        QuickAddDialog(day: day, coldStart: coldStart, voice: voice),
   );
 }
 
 class QuickAddDialog extends ConsumerStatefulWidget {
-  const QuickAddDialog({super.key, this.day, this.coldStart = false});
+  const QuickAddDialog({
+    super.key,
+    this.day,
+    this.coldStart = false,
+    this.voice = false,
+  });
 
   final DateTime? day;
 
   /// Widget'tan açılınca pencere odağı geç gelir, klavye yeniden istenir.
   final bool coldStart;
+
+  /// Açılır açılmaz dinlemeye başlar, klavye açılmaz.
+  final bool voice;
 
   @override
   ConsumerState<QuickAddDialog> createState() => _QuickAddDialogState();
@@ -42,18 +57,69 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
   DateTime? _dayOverride;
   TimeOfDay? _timeOverride;
   (int?,)? _reminderOverride;
+  ItemKind? _kindOverride;
+  (Recurrence?,)? _repeatOverride;
   bool _showError = false;
   bool _saving = false;
+  bool _listening = false;
+  late final Dictation _dictation;
+  String? _voiceError;
   String _lastText = '';
   ParsedInput _parsed = const ParsedInput(title: '', spans: []);
 
   @override
   void initState() {
     super.initState();
+    _dictation = Dictation(
+      ref.read(voiceInputProvider),
+      onText: _onDictated,
+      onListening: (on) {
+        if (mounted) setState(() => _listening = on);
+      },
+      onError: _onVoiceError,
+    );
     _controller.addListener(_onChanged);
-    if (widget.coldStart) {
+    if (widget.voice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Soğuk açılışta mikrofon, pencere öne gelince kullanılabilir.
+        if (widget.coldStart) {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        }
+        if (mounted) await _toggleVoice();
+      });
+    } else if (widget.coldStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _showKeyboard());
     }
+  }
+
+  Future<void> _toggleVoice() async {
+    if (_dictation.isListening) {
+      await _dictation.stop();
+      return;
+    }
+    setState(() => _voiceError = null);
+    await _dictation.start(_controller.text);
+  }
+
+  void _onDictated(String text) {
+    if (!mounted) return;
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  void _onVoiceError(VoiceError error) {
+    if (!mounted) return;
+    setState(
+      () => _voiceError = switch (error) {
+        VoiceError.permission => 'Mikrofon izni verilmedi.',
+        VoiceError.network => 'Ses tanıma için internet gerekiyor.',
+        VoiceError.unavailable =>
+          'Ses tanıma kullanılamıyor. Mikrofon iznini kontrol et.',
+        _ => 'Ses tanınamadı, tekrar dene.',
+      },
+    );
   }
 
   /// Pencere odağı Flutter'dan sonra gelir; klavye görünene kadar yeniden ister.
@@ -72,6 +138,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
 
   @override
   void dispose() {
+    _dictation.dispose();
     _controller.dispose();
     _focus.dispose();
     super.dispose();
@@ -81,6 +148,9 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
   void _onChanged() {
     if (_controller.text == _lastText) return;
     _lastText = _controller.text;
+    if (_dictation.isListening && _controller.text != _dictation.written) {
+      _dictation.edited(_controller.text);
+    }
     setState(_reparse);
   }
 
@@ -96,8 +166,21 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
 
   DateTime get _baseDay => widget.day ?? ref.read(todayProvider);
 
-  DateTime get _day =>
-      _dayOverride ?? _parsed.resolveDay(_baseDay, DateTime.now());
+  /// Süreli tekrarın bitişi ilk güne göre hesaplanır: “4 hafta boyunca”.
+  Recurrence? get _recurrence => _repeatOverride != null
+      ? _repeatOverride!.$1
+      : _parsed.recurrenceFrom(_day);
+
+  ItemKind get _kind =>
+      _kindOverride ?? (_parsed.isEvent ? ItemKind.event : ItemKind.task);
+
+  DateTime get _day {
+    final day = _dayOverride ?? _parsed.resolveDay(_baseDay, DateTime.now());
+    final rule = _repeatOverride != null
+        ? _repeatOverride!.$1
+        : _parsed.recurrence;
+    return rule?.align(day) ?? day;
+  }
 
   TimeOfDay? get _time =>
       _timeOverride ??
@@ -141,6 +224,21 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
     _focus.requestFocus();
   }
 
+  Future<void> _pickRepeat() async {
+    final picked = await pickRecurrence(context, _recurrence, _day);
+    if (picked != null) setState(() => _repeatOverride = picked);
+    _focus.requestFocus();
+  }
+
+  /// Yazılarak gelen tekrar silinirse kelimeler başlığa döner.
+  void _clearRepeat() {
+    if (_repeatOverride == null && _parsed.recurrence != null) {
+      _disable(ParseField.repeat);
+    } else {
+      setState(() => _repeatOverride = (null,));
+    }
+  }
+
   void _disable(ParseField field) => setState(() {
     _disabled.add(field);
     if (field == ParseField.date) _dayOverride = null;
@@ -150,6 +248,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
 
   Future<void> _save(AppSettings settings) async {
     if (_saving) return;
+    await _dictation.stop();
     final title = _parsed.title;
     if (title.isEmpty) {
       setState(() => _showError = true);
@@ -169,6 +268,9 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
               : DateTime(day.year, day.month, day.day, time.hour, time.minute),
           durationMin: _parsed.durationMin,
           reminderMin: _reminder(settings),
+          kind: _kind,
+          endDay: _parsed.endDate,
+          recurrence: _recurrence,
         );
     if (mounted) Navigator.pop(context);
   }
@@ -180,49 +282,38 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
     final today = ref.watch(todayProvider);
     _controller.highlight = c.accentText;
     final time = _time;
+    final kind = _kind;
+    final endDate = _parsed.endDate;
+    final rule = _recurrence;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focus,
-                    autofocus: true,
-                    maxLength: 200,
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _save(settings),
-                    style: context.type.bodyLarge,
-                    decoration: InputDecoration(
-                      hintText: 'yarın 14:00 dişçi',
-                      hintStyle: context.type.bodyLarge?.copyWith(
-                        color: c.muted,
-                      ),
-                      border: InputBorder.none,
-                      counterText: '',
-                      errorText: _showError ? 'Başlık yaz' : null,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Tarih ve saat seç',
-                  onPressed: _pickDayAndTime,
-                  icon: Icon(
-                    Icons.edit_calendar_outlined,
-                    size: 20,
-                    color: c.accentText,
-                  ),
-                ),
-              ],
+            // Uzun girdiler satır kaydırarak tamamen görünür.
+            TextField(
+              controller: _controller,
+              focusNode: _focus,
+              autofocus: !widget.voice,
+              maxLength: 200,
+              minLines: 2,
+              maxLines: 6,
+              keyboardType: TextInputType.text,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _save(settings),
+              style: context.type.bodyLarge,
+              decoration: InputDecoration(
+                hintText: _listening ? 'Dinliyorum…' : 'yarın 14:00 dişçi',
+                hintStyle: context.type.bodyLarge?.copyWith(color: c.muted),
+                border: InputBorder.none,
+                counterText: '',
+                errorText: _showError ? 'Başlık yaz' : null,
+              ),
             ),
             const SizedBox(height: 4),
             Wrap(
@@ -230,7 +321,20 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
               runSpacing: 6,
               children: [
                 _chip(
-                  label: dayLabel(_day, today),
+                  label: kind == ItemKind.event ? 'Etkinlik' : 'Görev',
+                  icon: kind == ItemKind.event
+                      ? Icons.event_outlined
+                      : Icons.check_box_outlined,
+                  onPressed: () => setState(
+                    () => _kindOverride = kind == ItemKind.event
+                        ? ItemKind.task
+                        : ItemKind.event,
+                  ),
+                ),
+                _chip(
+                  label: endDate != null && kind == ItemKind.event
+                      ? '${dayLabel(_day, today)} – ${dayLabel(endDate, today)}'
+                      : dayLabel(_day, today),
                   onPressed: () async {
                     await _pickDay();
                     _focus.requestFocus();
@@ -249,7 +353,17 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
                       ? () => _disable(ParseField.time)
                       : null,
                 ),
-                if (time != null && _parsed.durationMin != null)
+                _chip(
+                  label: rule == null
+                      ? 'Tekrar yok'
+                      : recurrenceLabel(rule, _day),
+                  icon: Icons.repeat,
+                  onPressed: _pickRepeat,
+                  onDeleted: rule != null ? _clearRepeat : null,
+                ),
+                if (time != null &&
+                    kind == ItemKind.event &&
+                    _parsed.durationMin != null)
                   _chip(
                     label: offsetLabel(_parsed.durationMin!),
                     onDeleted: () => _disable(ParseField.duration),
@@ -261,10 +375,41 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
                   ),
               ],
             ),
+            if (_voiceError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _voiceError!,
+                  style: context.type.bodySmall?.copyWith(color: c.danger),
+                ),
+              ),
             const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                IconButton(
+                  tooltip: _listening ? 'Dinlemeyi durdur' : 'Sesle yaz',
+                  onPressed: _toggleVoice,
+                  visualDensity: VisualDensity.compact,
+                  style: _listening
+                      ? IconButton.styleFrom(backgroundColor: c.accent)
+                      : null,
+                  icon: Icon(
+                    _listening ? Icons.mic : Icons.mic_none,
+                    size: 22,
+                    color: _listening ? c.onAccent : c.accentText,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Tarih ve saat seç',
+                  onPressed: _pickDayAndTime,
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.edit_calendar_outlined,
+                    size: 22,
+                    color: c.accentText,
+                  ),
+                ),
+                const Spacer(),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Vazgeç'),
@@ -284,9 +429,11 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
 
   Widget _chip({
     required String label,
+    IconData? icon,
     VoidCallback? onPressed,
     VoidCallback? onDeleted,
   }) => InputChip(
+    avatar: icon == null ? null : Icon(icon, size: 16),
     label: Text(label),
     onPressed: onPressed,
     onDeleted: onDeleted,

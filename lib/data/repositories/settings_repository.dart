@@ -24,6 +24,9 @@ class SettingsRepository implements SettingsStore {
       _row('lifecycle_interval_days', s.lifecycleIntervalDays),
       _row('theme', s.theme),
       _row('widget_body_tap', s.widgetTapMode),
+      _row('palette', s.palette),
+      _row('widget_opacity', s.widgetOpacity),
+      _row('widget_radius', s.widgetRadius),
     ]);
   });
 
@@ -49,6 +52,9 @@ class SettingsRepository implements SettingsStore {
       ),
       theme: values['theme'] ?? d.theme,
       widgetTapMode: values['widget_body_tap'] ?? d.widgetTapMode,
+      palette: values['palette'] ?? d.palette,
+      widgetOpacity: number('widget_opacity', d.widgetOpacity).clamp(0, 100),
+      widgetRadius: number('widget_radius', d.widgetRadius).clamp(0, 32),
     );
   }
 }

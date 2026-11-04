@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Stitch “Nocturne Agenda” tasarım sisteminin renkleri. Açık tema aynı
-/// tonlardan, kâğıt hissi verecek şekilde türetilmiştir.
+import '../domain/palettes.dart';
+
+/// Seçili renk temasının uygulamadaki renkleri, bkz. palettes.dart.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
@@ -14,40 +15,26 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.text,
     required this.textSoft,
     required this.accent,
+    required this.accentSoft,
     required this.accentText,
     required this.onAccent,
     required this.danger,
   });
 
-  static const dark = AppColors(
-    surface: Color(0xFF121316),
-    low: Color(0xFF1B1B1F),
-    container: Color(0xFF1F1F23),
-    high: Color(0xFF292A2D),
-    hairline: Color(0xFF2F323A),
-    muted: Color(0xFF8D919A),
-    text: Color(0xFFE3E2E6),
-    textSoft: Color(0xFFC3C6D1),
-    accent: Color(0xFF4A6FA5),
-    accentText: Color(0xFFA7C8FF),
-    onAccent: Color(0xFFEDF1FF),
-    danger: Color(0xFFFFB4AB),
-  );
-
-  static const light = AppColors(
-    surface: Color(0xFFF6F5F1),
-    low: Color(0xFFFFFFFF),
-    container: Color(0xFFEDECE7),
-    high: Color(0xFFE3E2DC),
-    hairline: Color(0xFFDAD9D2),
-    muted: Color(0xFF6E727B),
-    text: Color(0xFF1B1C1F),
-    textSoft: Color(0xFF43474F),
-    accent: Color(0xFF4A6FA5),
-    accentText: Color(0xFF395F94),
-    onAccent: Color(0xFFFFFFFF),
-    danger: Color(0xFFB3261E),
-  );
+  AppColors.from(PaletteColors p)
+    : surface = Color(p.surface),
+      low = Color(p.low),
+      container = Color(p.container),
+      high = Color(p.high),
+      hairline = Color(p.hairline),
+      muted = Color(p.muted),
+      text = Color(p.text),
+      textSoft = Color(p.textSoft),
+      accent = Color(p.accent),
+      accentSoft = Color(p.accentSoft),
+      accentText = Color(p.accentText),
+      onAccent = Color(p.onAccent),
+      danger = Color(p.danger);
 
   final Color surface;
   final Color low;
@@ -58,6 +45,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color text;
   final Color textSoft;
   final Color accent;
+  final Color accentSoft;
   final Color accentText;
   final Color onAccent;
   final Color danger;
@@ -118,8 +106,10 @@ TextTheme _textTheme(AppColors c) {
   );
 }
 
-ThemeData buildTheme(Brightness brightness) {
-  final c = brightness == Brightness.dark ? AppColors.dark : AppColors.light;
+ThemeData buildTheme(Brightness brightness, {ColorPalette palette = nocturne}) {
+  final c = AppColors.from(
+    brightness == Brightness.dark ? palette.dark : palette.light,
+  );
   final scheme = ColorScheme(
     brightness: brightness,
     primary: c.accent,

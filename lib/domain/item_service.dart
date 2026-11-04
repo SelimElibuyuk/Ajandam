@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'dates.dart';
 import 'item.dart';
+import 'recurrence.dart';
 import 'reminder_planner.dart';
 import 'rollover.dart';
 import 'settings.dart';
@@ -23,6 +24,9 @@ abstract class ItemStore {
   Future<List<AgendaItem>> openItems();
   Future<void> purgeDeletedBefore(DateTime time);
   Future<void> purge(String id);
+
+  /// Serinin [from] ve sonrasındaki tekrar kayıtlarını siler.
+  Future<void> removeOccurrences(String seriesId, DateTime from);
 }
 
 abstract class SettingsStore {
@@ -39,6 +43,10 @@ abstract class ReminderGateway {
 }
 
 const trashDays = 30;
+
+/// Tekrarların hatırlatmaları bu kadar gün ilerisi için kurulur; saatlik arka
+/// plan işi pencereyi kaydırır.
+const occurrenceDays = 14;
 const snoozeMinutes = 10;
 
 const _replanDelay = Duration(milliseconds: 400);
@@ -70,6 +78,8 @@ class ItemService {
   Timer? _widgetTimer;
   bool _rearmPending = false;
 
+  /// [kind] verilmezse süre veya bitiş günü olan girdi etkinlik olur.
+  /// Saatli etkinliğin süresi yoksa bir saat sayılır.
   Future<AgendaItem> create({
     required String title,
     required DateTime day,
@@ -78,20 +88,42 @@ class ItemService {
     int? reminderMin,
     String? notes,
     bool important = false,
+    ItemKind? kind,
+    DateTime? endDay,
+    Recurrence? recurrence,
   }) async {
     final now = _clock();
-    final isEvent = start != null && (durationMin ?? 0) > 0;
+    final isEvent =
+        (kind ?? _autoKind(start, durationMin, endDay)) == ItemKind.event;
+    final first =
+        recurrence?.align(dayOnly(start ?? day)) ?? dayOnly(start ?? day);
+    final at = start == null
+        ? null
+        : DateTime(
+            first.year,
+            first.month,
+            first.day,
+            start.hour,
+            start.minute,
+          );
+    final minutes = (durationMin ?? 0) > 0 ? durationMin! : 60;
+    final lastDay =
+        isEvent && at == null && endDay != null && endDay.isAfter(first)
+        ? dayOnly(endDay)
+        : null;
     final item = AgendaItem(
       id: _newId(),
       kind: isEvent ? ItemKind.event : ItemKind.task,
       title: title,
       notes: notes,
-      day: dayOnly(start ?? day),
-      start: start,
-      end: isEvent ? start.add(Duration(minutes: durationMin!)) : null,
+      day: first,
+      start: at,
+      end: isEvent && at != null ? at.add(Duration(minutes: minutes)) : null,
+      endDay: lastDay,
       important: important,
-      anchorDay: isEvent ? null : dayOnly(start ?? day),
-      reminderMin: start == null ? null : reminderMin,
+      anchorDay: isEvent || recurrence != null ? null : first,
+      reminderMin: at == null ? null : reminderMin,
+      recurrence: recurrence,
       createdAt: now,
       updatedAt: now,
     );
@@ -100,24 +132,105 @@ class ItemService {
     return item;
   }
 
+  static ItemKind _autoKind(
+    DateTime? start,
+    int? durationMin,
+    DateTime? endDay,
+  ) => (start != null && (durationMin ?? 0) > 0) || endDay != null
+      ? ItemKind.event
+      : ItemKind.task;
+
   /// Düzenleme ekranından gelen değişikliği görev ömrü kurallarıyla kaydeder.
+  /// Tekrar verilirse yalnızca o günün kaydı değişir.
   Future<void> save(AgendaItem edited) async {
     final old = await _store.byId(edited.id);
     if (old == null) return;
     final today = dayOnly(_clock());
     var anchor = edited.anchorDay;
-    if (!edited.isTask) {
+    if (!edited.isTask || edited.recurrence != null || edited.isOccurrence) {
       anchor = null;
     } else if (anchor == null || edited.day != old.day) {
       anchor = edited.day;
     } else if (old.important && !edited.important) {
       anchor = today;
     }
+    final day = edited.isSeries
+        ? edited.recurrence!.align(edited.day)
+        : edited.day;
     await _store.update(
-      edited.copyWith(
+      _shiftTo(edited, day).copyWith(
         anchorDay: anchor,
         snoozedUntil: edited.start == old.start ? edited.snoozedUntil : null,
+        rolledCount: edited.isSeries ? 0 : null,
+        doneAt: edited.isSeries ? null : edited.doneAt,
         updatedAt: _clock(),
+      ),
+    );
+    await _replan();
+  }
+
+  static AgendaItem _shiftTo(AgendaItem item, DateTime day) {
+    final shift = daysBetween(item.day, day);
+    if (shift == 0) return item;
+    return item.copyWith(
+      day: day,
+      start: item.start == null ? null : addDays(item.start!, shift),
+      end: item.end == null ? null : addDays(item.end!, shift),
+      endDay: item.endDay == null ? null : addDays(item.endDay!, shift),
+    );
+  }
+
+  /// Tekrarı ve sonrakileri değiştirir: Seri o günden ikiye bölünür, geçmiş
+  /// tekrarlar olduğu gibi kalır.
+  Future<void> saveFollowing(AgendaItem edited) async {
+    final seriesId = edited.seriesId;
+    final from = edited.originalDay;
+    if (seriesId == null || from == null) return save(edited);
+    final series = await _store.byId(seriesId);
+    if (series == null) return;
+    final now = _clock();
+    await _store.removeOccurrences(seriesId, from);
+    final rule = edited.recurrence;
+    var next = edited.copyWith(
+      id: from == series.day ? series.id : _newId(),
+      seriesId: null,
+      originalDay: null,
+      doneAt: null,
+      rolledCount: 0,
+      snoozedUntil: null,
+      anchorDay: rule == null && edited.isTask ? edited.day : null,
+      createdAt: from == series.day ? series.createdAt : now,
+      updatedAt: now,
+    );
+    if (rule != null) next = _shiftTo(next, rule.align(next.day));
+    if (from == series.day) {
+      await _store.update(next);
+    } else {
+      await _store.update(
+        series.copyWith(
+          recurrence: series.recurrence!.endingBefore(from),
+          updatedAt: now,
+        ),
+      );
+      await _store.insert(next);
+    }
+    await _replan();
+  }
+
+  /// Tekrarı ve sonrakileri siler, geçmiş tekrarlar kalır.
+  Future<void> deleteFollowing(AgendaItem occurrence) async {
+    final seriesId = occurrence.seriesId;
+    final from = occurrence.originalDay;
+    if (seriesId == null || from == null) return delete(occurrence.id);
+    final series = await _store.byId(seriesId);
+    if (series == null) return;
+    if (from == series.day) return delete(series.id);
+    final now = _clock();
+    await _store.removeOccurrences(seriesId, from);
+    await _store.update(
+      series.copyWith(
+        recurrence: series.recurrence!.endingBefore(from),
+        updatedAt: now,
       ),
     );
     await _replan();
@@ -161,7 +274,7 @@ class ItemService {
     if (item == null) return;
     final now = _clock();
     final today = dayOnly(now);
-    final restored = item.isTask
+    final restored = item.isTask && item.recurrence == null
         ? item.movedTo(today, rolledBy: 0).copyWith(anchorDay: today)
         : item;
     await _store.update(restored.copyWith(deletedAt: null, updatedAt: now));
@@ -311,9 +424,18 @@ class ItemService {
 
   Future<void> _applyPlan({required bool rearm}) async {
     final settings = await _settings.load();
-    final items = await _store.openItems();
+    final now = _clock();
+    final items = {for (final item in await _store.openItems()) item.id: item};
+    final today = dayOnly(now);
+    final ahead = await _store.itemsAround(
+      today,
+      addDays(today, occurrenceDays),
+    );
+    for (final item in ahead.where((i) => i.isOccurrence && !i.isDone)) {
+      items.putIfAbsent(item.id, () => item);
+    }
     await _reminders.replaceAll(
-      planNotifications(items, settings.lifecycle, _clock()),
+      planNotifications(items.values, settings.lifecycle, now),
       rearm: rearm,
     );
   }

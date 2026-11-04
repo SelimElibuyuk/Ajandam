@@ -1,5 +1,6 @@
 import 'dates.dart';
 import 'item.dart';
+import 'palettes.dart';
 import 'settings.dart';
 
 /// Widget'ta bir kutuya dokunuldu; kalıcı kayda işlenmeyi bekliyor.
@@ -42,14 +43,18 @@ Map<String, dynamic> buildSnapshot(
 }) {
   final byDay = <DateTime, List<AgendaItem>>{};
   for (final item in items) {
-    final carried = item.isTask && !item.isDone && item.day.isBefore(today);
+    final carried =
+        item.isTask &&
+        !item.isDone &&
+        !item.isOccurrence &&
+        item.day.isBefore(today);
     (byDay[carried ? today : item.day] ??= []).add(item);
   }
 
   return {
     'generatedAt': now.toUtc().toIso8601String(),
     'tapMode': settings.widgetTapMode,
-    'theme': settings.theme,
+    ...widgetAppearance(settings),
     'days': [for (var i = -1; i <= 7; i++) _day(addDays(today, i), byDay, now)],
   };
 }
@@ -61,10 +66,13 @@ Map<String, dynamic> _day(
 ) {
   final items = byDay[day] ?? const <AgendaItem>[];
   final groups = DayGroups.from(items, day);
-  final ordered = [...groups.overdue, ...groups.timed, ...groups.untimed];
+  final all = [...groups.overdue, ...groups.timed, ...groups.untimed];
+  // Sınır aşılırsa önce bitenler düşsün.
+  final open = all.where((i) => !i.isFinished(now)).toList();
+  final ordered = [...open, ...all.where((i) => i.isFinished(now))];
   return {
     'date': dayKey(day),
-    'remaining': ordered.where((i) => !i.isFinished(now)).length,
+    'remaining': open.length,
     'items': [for (final item in ordered.take(_maxPerDay)) _item(item)],
   };
 }
@@ -77,6 +85,7 @@ Map<String, dynamic> _item(AgendaItem item) {
     'kind': item.isTask ? 'task' : 'event',
     'done': item.isDone,
     'day': dayKey(item.day),
+    if (item.isOccurrence) 'recurring': true,
     if (item.start != null) ...{
       'time': hhmm(item.start!),
       'startMs': item.start!.millisecondsSinceEpoch,

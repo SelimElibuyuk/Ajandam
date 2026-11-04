@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121316"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="serif"
+        android:text="@string/habit_widget_preview_title"
+        android:textColor="#E3E2E6"
+        android:textSize="17sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout style="@style/HabitPreviewDone" />
+        <FrameLayout style="@style/HabitPreviewDone" />
+        <FrameLayout style="@style/HabitPreviewDone" />
+        <FrameLayout style="@style/HabitPreviewEmpty" />
+        <FrameLayout style="@style/HabitPreviewDone" />
+        <FrameLayout style="@style/HabitPreviewEmpty" />
+    </LinearLayout>
+</LinearLayout>

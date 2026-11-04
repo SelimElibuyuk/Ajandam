@@ -5,11 +5,13 @@ import 'package:intl/intl.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../domain/dates.dart';
+import '../../domain/habit.dart';
 import '../../domain/item.dart';
 import '../../domain/settings.dart';
 import '../../domain/week.dart';
 import '../../ui/app_chrome.dart';
 import '../day/day_list.dart';
+import '../habits/habit_calendar.dart';
 
 final _monthFormat = DateFormat('MMMM y', 'tr');
 final _dayFormat = DateFormat('d MMMM EEEE', 'tr');
@@ -38,12 +40,16 @@ class _MonthScreenState extends ConsumerState<MonthScreen> {
     final today = ref.watch(todayProvider);
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     final selected = _selected ?? today;
+    final habits = ref.watch(habitsProvider).value ?? const <Habit>[];
+    final habitId = ref.watch(selectedHabitProvider);
+    final habit = habits.where((h) => h.id == habitId).firstOrNull;
+    final atToday = habit != null || selected == today;
 
     return Column(
       children: [
         AppHeader(
           title: Text('Ajandam', style: context.type.headlineSmall),
-          action: selected == today && _month == _firstOfMonth(today)
+          action: atToday && _month == _firstOfMonth(today)
               ? null
               : TextButton(
                   onPressed: () => setState(() {
@@ -53,9 +59,11 @@ class _MonthScreenState extends ConsumerState<MonthScreen> {
                   child: const Text('Bugün'),
                 ),
         ),
+        const SizedBox(height: 10),
+        HabitTabs(habits: habits, selected: habit),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
             children: [
               Row(
                 children: [
@@ -103,18 +111,28 @@ class _MonthScreenState extends ConsumerState<MonthScreen> {
                   final v = details.primaryVelocity ?? 0;
                   if (v.abs() > 100) _shiftMonth(v < 0 ? 1 : -1);
                 },
-                child: _MonthGrid(
-                  month: _month,
-                  firstWeekday: settings.weekStart,
-                  today: today,
-                  selected: selected,
-                  onSelect: (day) => setState(() => _selected = day),
-                ),
+                child: habit == null
+                    ? _MonthGrid(
+                        month: _month,
+                        firstWeekday: settings.weekStart,
+                        today: today,
+                        selected: selected,
+                        onSelect: (day) => setState(() => _selected = day),
+                      )
+                    : HabitMonthGrid(
+                        habit: habit,
+                        month: _month,
+                        firstWeekday: settings.weekStart,
+                        today: today,
+                      ),
               ),
               const SizedBox(height: 16),
-              _DayTitle(day: selected, isToday: selected == today),
-              const SizedBox(height: 10),
-              DayList(day: selected),
+              if (habit == null) ...[
+                _DayTitle(day: selected, isToday: selected == today),
+                const SizedBox(height: 10),
+                DayList(day: selected),
+              ] else
+                HabitSummary(habit: habit, today: today),
             ],
           ),
         ),

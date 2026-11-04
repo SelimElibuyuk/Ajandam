@@ -1028,6 +1028,17 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<String> endDate = GeneratedColumn<String>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _timezoneMeta = const VerificationMeta(
     'timezone',
   );
@@ -1107,6 +1118,28 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
   @override
   late final GeneratedColumn<String> rrule = GeneratedColumn<String>(
     'rrule',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _seriesIdMeta = const VerificationMeta(
+    'seriesId',
+  );
+  @override
+  late final GeneratedColumn<String> seriesId = GeneratedColumn<String>(
+    'series_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalDateMeta = const VerificationMeta(
+    'originalDate',
+  );
+  @override
+  late final GeneratedColumn<String> originalDate = GeneratedColumn<String>(
+    'original_date',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -1202,6 +1235,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     startAt,
     endAt,
     date,
+    endDate,
     timezone,
     doneAt,
     priority,
@@ -1210,6 +1244,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     lifecycleAnchorDate,
     snoozedUntil,
     rrule,
+    seriesId,
+    originalDate,
     calendarId,
     googleEventId,
     googleEtag,
@@ -1281,6 +1317,12 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         date.isAcceptableOrUnknown(data['date']!, _dateMeta),
       );
     }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
     if (data.containsKey('timezone')) {
       context.handle(
         _timezoneMeta,
@@ -1336,6 +1378,21 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
       context.handle(
         _rruleMeta,
         rrule.isAcceptableOrUnknown(data['rrule']!, _rruleMeta),
+      );
+    }
+    if (data.containsKey('series_id')) {
+      context.handle(
+        _seriesIdMeta,
+        seriesId.isAcceptableOrUnknown(data['series_id']!, _seriesIdMeta),
+      );
+    }
+    if (data.containsKey('original_date')) {
+      context.handle(
+        _originalDateMeta,
+        originalDate.isAcceptableOrUnknown(
+          data['original_date']!,
+          _originalDateMeta,
+        ),
       );
     }
     if (data.containsKey('calendar_id')) {
@@ -1431,6 +1488,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         DriftSqlType.string,
         data['${effectivePrefix}date'],
       ),
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_date'],
+      ),
       timezone: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}timezone'],
@@ -1462,6 +1523,14 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
       rrule: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}rrule'],
+      ),
+      seriesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}series_id'],
+      ),
+      originalDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_date'],
       ),
       calendarId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -1516,6 +1585,9 @@ class Item extends DataClass implements Insertable<Item> {
 
   /// YYYY-MM-DD, tüm gün girdiler ve saatsiz görevler için
   final String? date;
+
+  /// YYYY-MM-DD, birkaç gün süren tüm gün etkinliğin son günü
+  final String? endDate;
   final String? timezone;
   final int? doneAt;
 
@@ -1530,8 +1602,13 @@ class Item extends DataClass implements Insertable<Item> {
   /// UTC epoch ms, “10 dk ertele” ile verilen yeni hatırlatma zamanı
   final int? snoozedUntil;
 
-  /// RFC 5545 (P1)
+  /// RFC 5545 RRULE, yalnızca serinin kendisinde dolu
   final String? rrule;
+
+  /// Tamamlanan, değiştirilen veya silinen tekrar: serisi ve asıl günü.
+  /// Kimliği `seriId~YYYY-MM-DD` biçimindedir.
+  final String? seriesId;
+  final String? originalDate;
   final String? calendarId;
   final String? googleEventId;
   final String? googleEtag;
@@ -1550,6 +1627,7 @@ class Item extends DataClass implements Insertable<Item> {
     this.startAt,
     this.endAt,
     this.date,
+    this.endDate,
     this.timezone,
     this.doneAt,
     required this.priority,
@@ -1558,6 +1636,8 @@ class Item extends DataClass implements Insertable<Item> {
     this.lifecycleAnchorDate,
     this.snoozedUntil,
     this.rrule,
+    this.seriesId,
+    this.originalDate,
     this.calendarId,
     this.googleEventId,
     this.googleEtag,
@@ -1585,6 +1665,9 @@ class Item extends DataClass implements Insertable<Item> {
     if (!nullToAbsent || date != null) {
       map['date'] = Variable<String>(date);
     }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<String>(endDate);
+    }
     if (!nullToAbsent || timezone != null) {
       map['timezone'] = Variable<String>(timezone);
     }
@@ -1604,6 +1687,12 @@ class Item extends DataClass implements Insertable<Item> {
     }
     if (!nullToAbsent || rrule != null) {
       map['rrule'] = Variable<String>(rrule);
+    }
+    if (!nullToAbsent || seriesId != null) {
+      map['series_id'] = Variable<String>(seriesId);
+    }
+    if (!nullToAbsent || originalDate != null) {
+      map['original_date'] = Variable<String>(originalDate);
     }
     if (!nullToAbsent || calendarId != null) {
       map['calendar_id'] = Variable<String>(calendarId);
@@ -1641,6 +1730,9 @@ class Item extends DataClass implements Insertable<Item> {
           ? const Value.absent()
           : Value(endAt),
       date: date == null && nullToAbsent ? const Value.absent() : Value(date),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
       timezone: timezone == null && nullToAbsent
           ? const Value.absent()
           : Value(timezone),
@@ -1661,6 +1753,12 @@ class Item extends DataClass implements Insertable<Item> {
       rrule: rrule == null && nullToAbsent
           ? const Value.absent()
           : Value(rrule),
+      seriesId: seriesId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(seriesId),
+      originalDate: originalDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalDate),
       calendarId: calendarId == null && nullToAbsent
           ? const Value.absent()
           : Value(calendarId),
@@ -1695,6 +1793,7 @@ class Item extends DataClass implements Insertable<Item> {
       startAt: serializer.fromJson<int?>(json['startAt']),
       endAt: serializer.fromJson<int?>(json['endAt']),
       date: serializer.fromJson<String?>(json['date']),
+      endDate: serializer.fromJson<String?>(json['endDate']),
       timezone: serializer.fromJson<String?>(json['timezone']),
       doneAt: serializer.fromJson<int?>(json['doneAt']),
       priority: serializer.fromJson<int>(json['priority']),
@@ -1705,6 +1804,8 @@ class Item extends DataClass implements Insertable<Item> {
       ),
       snoozedUntil: serializer.fromJson<int?>(json['snoozedUntil']),
       rrule: serializer.fromJson<String?>(json['rrule']),
+      seriesId: serializer.fromJson<String?>(json['seriesId']),
+      originalDate: serializer.fromJson<String?>(json['originalDate']),
       calendarId: serializer.fromJson<String?>(json['calendarId']),
       googleEventId: serializer.fromJson<String?>(json['googleEventId']),
       googleEtag: serializer.fromJson<String?>(json['googleEtag']),
@@ -1726,6 +1827,7 @@ class Item extends DataClass implements Insertable<Item> {
       'startAt': serializer.toJson<int?>(startAt),
       'endAt': serializer.toJson<int?>(endAt),
       'date': serializer.toJson<String?>(date),
+      'endDate': serializer.toJson<String?>(endDate),
       'timezone': serializer.toJson<String?>(timezone),
       'doneAt': serializer.toJson<int?>(doneAt),
       'priority': serializer.toJson<int>(priority),
@@ -1734,6 +1836,8 @@ class Item extends DataClass implements Insertable<Item> {
       'lifecycleAnchorDate': serializer.toJson<String?>(lifecycleAnchorDate),
       'snoozedUntil': serializer.toJson<int?>(snoozedUntil),
       'rrule': serializer.toJson<String?>(rrule),
+      'seriesId': serializer.toJson<String?>(seriesId),
+      'originalDate': serializer.toJson<String?>(originalDate),
       'calendarId': serializer.toJson<String?>(calendarId),
       'googleEventId': serializer.toJson<String?>(googleEventId),
       'googleEtag': serializer.toJson<String?>(googleEtag),
@@ -1753,6 +1857,7 @@ class Item extends DataClass implements Insertable<Item> {
     Value<int?> startAt = const Value.absent(),
     Value<int?> endAt = const Value.absent(),
     Value<String?> date = const Value.absent(),
+    Value<String?> endDate = const Value.absent(),
     Value<String?> timezone = const Value.absent(),
     Value<int?> doneAt = const Value.absent(),
     int? priority,
@@ -1761,6 +1866,8 @@ class Item extends DataClass implements Insertable<Item> {
     Value<String?> lifecycleAnchorDate = const Value.absent(),
     Value<int?> snoozedUntil = const Value.absent(),
     Value<String?> rrule = const Value.absent(),
+    Value<String?> seriesId = const Value.absent(),
+    Value<String?> originalDate = const Value.absent(),
     Value<String?> calendarId = const Value.absent(),
     Value<String?> googleEventId = const Value.absent(),
     Value<String?> googleEtag = const Value.absent(),
@@ -1777,6 +1884,7 @@ class Item extends DataClass implements Insertable<Item> {
     startAt: startAt.present ? startAt.value : this.startAt,
     endAt: endAt.present ? endAt.value : this.endAt,
     date: date.present ? date.value : this.date,
+    endDate: endDate.present ? endDate.value : this.endDate,
     timezone: timezone.present ? timezone.value : this.timezone,
     doneAt: doneAt.present ? doneAt.value : this.doneAt,
     priority: priority ?? this.priority,
@@ -1787,6 +1895,8 @@ class Item extends DataClass implements Insertable<Item> {
         : this.lifecycleAnchorDate,
     snoozedUntil: snoozedUntil.present ? snoozedUntil.value : this.snoozedUntil,
     rrule: rrule.present ? rrule.value : this.rrule,
+    seriesId: seriesId.present ? seriesId.value : this.seriesId,
+    originalDate: originalDate.present ? originalDate.value : this.originalDate,
     calendarId: calendarId.present ? calendarId.value : this.calendarId,
     googleEventId: googleEventId.present
         ? googleEventId.value
@@ -1809,6 +1919,7 @@ class Item extends DataClass implements Insertable<Item> {
       startAt: data.startAt.present ? data.startAt.value : this.startAt,
       endAt: data.endAt.present ? data.endAt.value : this.endAt,
       date: data.date.present ? data.date.value : this.date,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
       timezone: data.timezone.present ? data.timezone.value : this.timezone,
       doneAt: data.doneAt.present ? data.doneAt.value : this.doneAt,
       priority: data.priority.present ? data.priority.value : this.priority,
@@ -1823,6 +1934,10 @@ class Item extends DataClass implements Insertable<Item> {
           ? data.snoozedUntil.value
           : this.snoozedUntil,
       rrule: data.rrule.present ? data.rrule.value : this.rrule,
+      seriesId: data.seriesId.present ? data.seriesId.value : this.seriesId,
+      originalDate: data.originalDate.present
+          ? data.originalDate.value
+          : this.originalDate,
       calendarId: data.calendarId.present
           ? data.calendarId.value
           : this.calendarId,
@@ -1852,6 +1967,7 @@ class Item extends DataClass implements Insertable<Item> {
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
           ..write('date: $date, ')
+          ..write('endDate: $endDate, ')
           ..write('timezone: $timezone, ')
           ..write('doneAt: $doneAt, ')
           ..write('priority: $priority, ')
@@ -1860,6 +1976,8 @@ class Item extends DataClass implements Insertable<Item> {
           ..write('lifecycleAnchorDate: $lifecycleAnchorDate, ')
           ..write('snoozedUntil: $snoozedUntil, ')
           ..write('rrule: $rrule, ')
+          ..write('seriesId: $seriesId, ')
+          ..write('originalDate: $originalDate, ')
           ..write('calendarId: $calendarId, ')
           ..write('googleEventId: $googleEventId, ')
           ..write('googleEtag: $googleEtag, ')
@@ -1881,6 +1999,7 @@ class Item extends DataClass implements Insertable<Item> {
     startAt,
     endAt,
     date,
+    endDate,
     timezone,
     doneAt,
     priority,
@@ -1889,6 +2008,8 @@ class Item extends DataClass implements Insertable<Item> {
     lifecycleAnchorDate,
     snoozedUntil,
     rrule,
+    seriesId,
+    originalDate,
     calendarId,
     googleEventId,
     googleEtag,
@@ -1909,6 +2030,7 @@ class Item extends DataClass implements Insertable<Item> {
           other.startAt == this.startAt &&
           other.endAt == this.endAt &&
           other.date == this.date &&
+          other.endDate == this.endDate &&
           other.timezone == this.timezone &&
           other.doneAt == this.doneAt &&
           other.priority == this.priority &&
@@ -1917,6 +2039,8 @@ class Item extends DataClass implements Insertable<Item> {
           other.lifecycleAnchorDate == this.lifecycleAnchorDate &&
           other.snoozedUntil == this.snoozedUntil &&
           other.rrule == this.rrule &&
+          other.seriesId == this.seriesId &&
+          other.originalDate == this.originalDate &&
           other.calendarId == this.calendarId &&
           other.googleEventId == this.googleEventId &&
           other.googleEtag == this.googleEtag &&
@@ -1935,6 +2059,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<int?> startAt;
   final Value<int?> endAt;
   final Value<String?> date;
+  final Value<String?> endDate;
   final Value<String?> timezone;
   final Value<int?> doneAt;
   final Value<int> priority;
@@ -1943,6 +2068,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<String?> lifecycleAnchorDate;
   final Value<int?> snoozedUntil;
   final Value<String?> rrule;
+  final Value<String?> seriesId;
+  final Value<String?> originalDate;
   final Value<String?> calendarId;
   final Value<String?> googleEventId;
   final Value<String?> googleEtag;
@@ -1960,6 +2087,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.startAt = const Value.absent(),
     this.endAt = const Value.absent(),
     this.date = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.timezone = const Value.absent(),
     this.doneAt = const Value.absent(),
     this.priority = const Value.absent(),
@@ -1968,6 +2096,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.lifecycleAnchorDate = const Value.absent(),
     this.snoozedUntil = const Value.absent(),
     this.rrule = const Value.absent(),
+    this.seriesId = const Value.absent(),
+    this.originalDate = const Value.absent(),
     this.calendarId = const Value.absent(),
     this.googleEventId = const Value.absent(),
     this.googleEtag = const Value.absent(),
@@ -1986,6 +2116,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.startAt = const Value.absent(),
     this.endAt = const Value.absent(),
     this.date = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.timezone = const Value.absent(),
     this.doneAt = const Value.absent(),
     this.priority = const Value.absent(),
@@ -1994,6 +2125,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.lifecycleAnchorDate = const Value.absent(),
     this.snoozedUntil = const Value.absent(),
     this.rrule = const Value.absent(),
+    this.seriesId = const Value.absent(),
+    this.originalDate = const Value.absent(),
     this.calendarId = const Value.absent(),
     this.googleEventId = const Value.absent(),
     this.googleEtag = const Value.absent(),
@@ -2016,6 +2149,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Expression<int>? startAt,
     Expression<int>? endAt,
     Expression<String>? date,
+    Expression<String>? endDate,
     Expression<String>? timezone,
     Expression<int>? doneAt,
     Expression<int>? priority,
@@ -2024,6 +2158,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Expression<String>? lifecycleAnchorDate,
     Expression<int>? snoozedUntil,
     Expression<String>? rrule,
+    Expression<String>? seriesId,
+    Expression<String>? originalDate,
     Expression<String>? calendarId,
     Expression<String>? googleEventId,
     Expression<String>? googleEtag,
@@ -2042,6 +2178,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       if (startAt != null) 'start_at': startAt,
       if (endAt != null) 'end_at': endAt,
       if (date != null) 'date': date,
+      if (endDate != null) 'end_date': endDate,
       if (timezone != null) 'timezone': timezone,
       if (doneAt != null) 'done_at': doneAt,
       if (priority != null) 'priority': priority,
@@ -2051,6 +2188,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
         'lifecycle_anchor_date': lifecycleAnchorDate,
       if (snoozedUntil != null) 'snoozed_until': snoozedUntil,
       if (rrule != null) 'rrule': rrule,
+      if (seriesId != null) 'series_id': seriesId,
+      if (originalDate != null) 'original_date': originalDate,
       if (calendarId != null) 'calendar_id': calendarId,
       if (googleEventId != null) 'google_event_id': googleEventId,
       if (googleEtag != null) 'google_etag': googleEtag,
@@ -2071,6 +2210,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Value<int?>? startAt,
     Value<int?>? endAt,
     Value<String?>? date,
+    Value<String?>? endDate,
     Value<String?>? timezone,
     Value<int?>? doneAt,
     Value<int>? priority,
@@ -2079,6 +2219,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Value<String?>? lifecycleAnchorDate,
     Value<int?>? snoozedUntil,
     Value<String?>? rrule,
+    Value<String?>? seriesId,
+    Value<String?>? originalDate,
     Value<String?>? calendarId,
     Value<String?>? googleEventId,
     Value<String?>? googleEtag,
@@ -2097,6 +2239,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       startAt: startAt ?? this.startAt,
       endAt: endAt ?? this.endAt,
       date: date ?? this.date,
+      endDate: endDate ?? this.endDate,
       timezone: timezone ?? this.timezone,
       doneAt: doneAt ?? this.doneAt,
       priority: priority ?? this.priority,
@@ -2105,6 +2248,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       lifecycleAnchorDate: lifecycleAnchorDate ?? this.lifecycleAnchorDate,
       snoozedUntil: snoozedUntil ?? this.snoozedUntil,
       rrule: rrule ?? this.rrule,
+      seriesId: seriesId ?? this.seriesId,
+      originalDate: originalDate ?? this.originalDate,
       calendarId: calendarId ?? this.calendarId,
       googleEventId: googleEventId ?? this.googleEventId,
       googleEtag: googleEtag ?? this.googleEtag,
@@ -2143,6 +2288,9 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     if (date.present) {
       map['date'] = Variable<String>(date.value);
     }
+    if (endDate.present) {
+      map['end_date'] = Variable<String>(endDate.value);
+    }
     if (timezone.present) {
       map['timezone'] = Variable<String>(timezone.value);
     }
@@ -2168,6 +2316,12 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     }
     if (rrule.present) {
       map['rrule'] = Variable<String>(rrule.value);
+    }
+    if (seriesId.present) {
+      map['series_id'] = Variable<String>(seriesId.value);
+    }
+    if (originalDate.present) {
+      map['original_date'] = Variable<String>(originalDate.value);
     }
     if (calendarId.present) {
       map['calendar_id'] = Variable<String>(calendarId.value);
@@ -2207,6 +2361,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
           ..write('date: $date, ')
+          ..write('endDate: $endDate, ')
           ..write('timezone: $timezone, ')
           ..write('doneAt: $doneAt, ')
           ..write('priority: $priority, ')
@@ -2215,6 +2370,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
           ..write('lifecycleAnchorDate: $lifecycleAnchorDate, ')
           ..write('snoozedUntil: $snoozedUntil, ')
           ..write('rrule: $rrule, ')
+          ..write('seriesId: $seriesId, ')
+          ..write('originalDate: $originalDate, ')
           ..write('calendarId: $calendarId, ')
           ..write('googleEventId: $googleEventId, ')
           ..write('googleEtag: $googleEtag, ')
@@ -3204,6 +3361,883 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   }
 }
 
+class $HabitsTable extends Habits with TableInfo<$HabitsTable, HabitRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HabitsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 200,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _weekdaysMeta = const VerificationMeta(
+    'weekdays',
+  );
+  @override
+  late final GeneratedColumn<String> weekdays = GeneratedColumn<String>(
+    'weekdays',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetMeta = const VerificationMeta('target');
+  @override
+  late final GeneratedColumn<int> target = GeneratedColumn<int>(
+    'target',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<int> color = GeneratedColumn<int>(
+    'color',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<String> startDate = GeneratedColumn<String>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    weekdays,
+    target,
+    color,
+    startDate,
+    sortOrder,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'habits';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HabitRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('weekdays')) {
+      context.handle(
+        _weekdaysMeta,
+        weekdays.isAcceptableOrUnknown(data['weekdays']!, _weekdaysMeta),
+      );
+    }
+    if (data.containsKey('target')) {
+      context.handle(
+        _targetMeta,
+        target.isAcceptableOrUnknown(data['target']!, _targetMeta),
+      );
+    }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  HabitRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HabitRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      weekdays: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weekdays'],
+      ),
+      target: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target'],
+      ),
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_date'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $HabitsTable createAlias(String alias) {
+    return $HabitsTable(attachedDatabase, alias);
+  }
+}
+
+class HabitRow extends DataClass implements Insertable<HabitRow> {
+  final String id;
+  final String title;
+
+  /// Virgülle ayrılmış haftanın günleri (1 = pazartesi); null ise her gün.
+  final String? weekdays;
+
+  /// Günlük hedef sayı; null ise yaptım/yapmadım.
+  final int? target;
+  final int color;
+
+  /// YYYY-MM-DD
+  final String startDate;
+  final int sortOrder;
+  final int createdAt;
+  final int updatedAt;
+  const HabitRow({
+    required this.id,
+    required this.title,
+    this.weekdays,
+    this.target,
+    required this.color,
+    required this.startDate,
+    required this.sortOrder,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || weekdays != null) {
+      map['weekdays'] = Variable<String>(weekdays);
+    }
+    if (!nullToAbsent || target != null) {
+      map['target'] = Variable<int>(target);
+    }
+    map['color'] = Variable<int>(color);
+    map['start_date'] = Variable<String>(startDate);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  HabitsCompanion toCompanion(bool nullToAbsent) {
+    return HabitsCompanion(
+      id: Value(id),
+      title: Value(title),
+      weekdays: weekdays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekdays),
+      target: target == null && nullToAbsent
+          ? const Value.absent()
+          : Value(target),
+      color: Value(color),
+      startDate: Value(startDate),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory HabitRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HabitRow(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      weekdays: serializer.fromJson<String?>(json['weekdays']),
+      target: serializer.fromJson<int?>(json['target']),
+      color: serializer.fromJson<int>(json['color']),
+      startDate: serializer.fromJson<String>(json['startDate']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'weekdays': serializer.toJson<String?>(weekdays),
+      'target': serializer.toJson<int?>(target),
+      'color': serializer.toJson<int>(color),
+      'startDate': serializer.toJson<String>(startDate),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  HabitRow copyWith({
+    String? id,
+    String? title,
+    Value<String?> weekdays = const Value.absent(),
+    Value<int?> target = const Value.absent(),
+    int? color,
+    String? startDate,
+    int? sortOrder,
+    int? createdAt,
+    int? updatedAt,
+  }) => HabitRow(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    weekdays: weekdays.present ? weekdays.value : this.weekdays,
+    target: target.present ? target.value : this.target,
+    color: color ?? this.color,
+    startDate: startDate ?? this.startDate,
+    sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  HabitRow copyWithCompanion(HabitsCompanion data) {
+    return HabitRow(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      weekdays: data.weekdays.present ? data.weekdays.value : this.weekdays,
+      target: data.target.present ? data.target.value : this.target,
+      color: data.color.present ? data.color.value : this.color,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitRow(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('weekdays: $weekdays, ')
+          ..write('target: $target, ')
+          ..write('color: $color, ')
+          ..write('startDate: $startDate, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    weekdays,
+    target,
+    color,
+    startDate,
+    sortOrder,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HabitRow &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.weekdays == this.weekdays &&
+          other.target == this.target &&
+          other.color == this.color &&
+          other.startDate == this.startDate &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class HabitsCompanion extends UpdateCompanion<HabitRow> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<String?> weekdays;
+  final Value<int?> target;
+  final Value<int> color;
+  final Value<String> startDate;
+  final Value<int> sortOrder;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const HabitsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.weekdays = const Value.absent(),
+    this.target = const Value.absent(),
+    this.color = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HabitsCompanion.insert({
+    required String id,
+    required String title,
+    this.weekdays = const Value.absent(),
+    this.target = const Value.absent(),
+    this.color = const Value.absent(),
+    required String startDate,
+    this.sortOrder = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       startDate = Value(startDate),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<HabitRow> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<String>? weekdays,
+    Expression<int>? target,
+    Expression<int>? color,
+    Expression<String>? startDate,
+    Expression<int>? sortOrder,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (weekdays != null) 'weekdays': weekdays,
+      if (target != null) 'target': target,
+      if (color != null) 'color': color,
+      if (startDate != null) 'start_date': startDate,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HabitsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? title,
+    Value<String?>? weekdays,
+    Value<int?>? target,
+    Value<int>? color,
+    Value<String>? startDate,
+    Value<int>? sortOrder,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return HabitsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      weekdays: weekdays ?? this.weekdays,
+      target: target ?? this.target,
+      color: color ?? this.color,
+      startDate: startDate ?? this.startDate,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (weekdays.present) {
+      map['weekdays'] = Variable<String>(weekdays.value);
+    }
+    if (target.present) {
+      map['target'] = Variable<int>(target.value);
+    }
+    if (color.present) {
+      map['color'] = Variable<int>(color.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<String>(startDate.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('weekdays: $weekdays, ')
+          ..write('target: $target, ')
+          ..write('color: $color, ')
+          ..write('startDate: $startDate, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $HabitLogsTable extends HabitLogs
+    with TableInfo<$HabitLogsTable, HabitLogRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HabitLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _habitIdMeta = const VerificationMeta(
+    'habitId',
+  );
+  @override
+  late final GeneratedColumn<String> habitId = GeneratedColumn<String>(
+    'habit_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES habits (id)',
+    ),
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _countMeta = const VerificationMeta('count');
+  @override
+  late final GeneratedColumn<int> count = GeneratedColumn<int>(
+    'count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [habitId, date, count, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'habit_logs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HabitLogRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('habit_id')) {
+      context.handle(
+        _habitIdMeta,
+        habitId.isAcceptableOrUnknown(data['habit_id']!, _habitIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_habitIdMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('count')) {
+      context.handle(
+        _countMeta,
+        count.isAcceptableOrUnknown(data['count']!, _countMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_countMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {habitId, date};
+  @override
+  HabitLogRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HabitLogRow(
+      habitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}habit_id'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      count: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}count'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $HabitLogsTable createAlias(String alias) {
+    return $HabitLogsTable(attachedDatabase, alias);
+  }
+}
+
+class HabitLogRow extends DataClass implements Insertable<HabitLogRow> {
+  final String habitId;
+
+  /// YYYY-MM-DD
+  final String date;
+  final int count;
+  final int updatedAt;
+  const HabitLogRow({
+    required this.habitId,
+    required this.date,
+    required this.count,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['habit_id'] = Variable<String>(habitId);
+    map['date'] = Variable<String>(date);
+    map['count'] = Variable<int>(count);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  HabitLogsCompanion toCompanion(bool nullToAbsent) {
+    return HabitLogsCompanion(
+      habitId: Value(habitId),
+      date: Value(date),
+      count: Value(count),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory HabitLogRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HabitLogRow(
+      habitId: serializer.fromJson<String>(json['habitId']),
+      date: serializer.fromJson<String>(json['date']),
+      count: serializer.fromJson<int>(json['count']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'habitId': serializer.toJson<String>(habitId),
+      'date': serializer.toJson<String>(date),
+      'count': serializer.toJson<int>(count),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  HabitLogRow copyWith({
+    String? habitId,
+    String? date,
+    int? count,
+    int? updatedAt,
+  }) => HabitLogRow(
+    habitId: habitId ?? this.habitId,
+    date: date ?? this.date,
+    count: count ?? this.count,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  HabitLogRow copyWithCompanion(HabitLogsCompanion data) {
+    return HabitLogRow(
+      habitId: data.habitId.present ? data.habitId.value : this.habitId,
+      date: data.date.present ? data.date.value : this.date,
+      count: data.count.present ? data.count.value : this.count,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitLogRow(')
+          ..write('habitId: $habitId, ')
+          ..write('date: $date, ')
+          ..write('count: $count, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(habitId, date, count, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HabitLogRow &&
+          other.habitId == this.habitId &&
+          other.date == this.date &&
+          other.count == this.count &&
+          other.updatedAt == this.updatedAt);
+}
+
+class HabitLogsCompanion extends UpdateCompanion<HabitLogRow> {
+  final Value<String> habitId;
+  final Value<String> date;
+  final Value<int> count;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const HabitLogsCompanion({
+    this.habitId = const Value.absent(),
+    this.date = const Value.absent(),
+    this.count = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HabitLogsCompanion.insert({
+    required String habitId,
+    required String date,
+    required int count,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : habitId = Value(habitId),
+       date = Value(date),
+       count = Value(count),
+       updatedAt = Value(updatedAt);
+  static Insertable<HabitLogRow> custom({
+    Expression<String>? habitId,
+    Expression<String>? date,
+    Expression<int>? count,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (habitId != null) 'habit_id': habitId,
+      if (date != null) 'date': date,
+      if (count != null) 'count': count,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HabitLogsCompanion copyWith({
+    Value<String>? habitId,
+    Value<String>? date,
+    Value<int>? count,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return HabitLogsCompanion(
+      habitId: habitId ?? this.habitId,
+      date: date ?? this.date,
+      count: count ?? this.count,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (habitId.present) {
+      map['habit_id'] = Variable<String>(habitId.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (count.present) {
+      map['count'] = Variable<int>(count.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitLogsCompanion(')
+          ..write('habitId: $habitId, ')
+          ..write('date: $date, ')
+          ..write('count: $count, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3213,6 +4247,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RemindersTable reminders = $RemindersTable(this);
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final $HabitsTable habits = $HabitsTable(this);
+  late final $HabitLogsTable habitLogs = $HabitLogsTable(this);
   late final Index itemsDate = Index(
     'items_date',
     'CREATE INDEX items_date ON items (date)',
@@ -3229,6 +4265,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'items_updated_at',
     'CREATE INDEX items_updated_at ON items (updated_at)',
   );
+  late final Index itemsSeriesId = Index(
+    'items_series_id',
+    'CREATE INDEX items_series_id ON items (series_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3240,10 +4280,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reminders,
     syncQueue,
     settings,
+    habits,
+    habitLogs,
     itemsDate,
     itemsStartAt,
     itemsGoogleEventId,
     itemsUpdatedAt,
+    itemsSeriesId,
   ];
 }
 
@@ -4038,6 +5081,7 @@ typedef $$ItemsTableCreateCompanionBuilder = ItemsCompanion Function({
   Value<int?> startAt,
   Value<int?> endAt,
   Value<String?> date,
+  Value<String?> endDate,
   Value<String?> timezone,
   Value<int?> doneAt,
   Value<int> priority,
@@ -4046,6 +5090,8 @@ typedef $$ItemsTableCreateCompanionBuilder = ItemsCompanion Function({
   Value<String?> lifecycleAnchorDate,
   Value<int?> snoozedUntil,
   Value<String?> rrule,
+  Value<String?> seriesId,
+  Value<String?> originalDate,
   Value<String?> calendarId,
   Value<String?> googleEventId,
   Value<String?> googleEtag,
@@ -4064,6 +5110,7 @@ typedef $$ItemsTableUpdateCompanionBuilder = ItemsCompanion Function({
   Value<int?> startAt,
   Value<int?> endAt,
   Value<String?> date,
+  Value<String?> endDate,
   Value<String?> timezone,
   Value<int?> doneAt,
   Value<int> priority,
@@ -4072,6 +5119,8 @@ typedef $$ItemsTableUpdateCompanionBuilder = ItemsCompanion Function({
   Value<String?> lifecycleAnchorDate,
   Value<int?> snoozedUntil,
   Value<String?> rrule,
+  Value<String?> seriesId,
+  Value<String?> originalDate,
   Value<String?> calendarId,
   Value<String?> googleEventId,
   Value<String?> googleEtag,
@@ -4170,6 +5219,11 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get timezone => $composableBuilder(
     column: $table.timezone,
     builder: (column) => ColumnFilters(column),
@@ -4207,6 +5261,16 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<String> get rrule => $composableBuilder(
     column: $table.rrule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get seriesId => $composableBuilder(
+    column: $table.seriesId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalDate => $composableBuilder(
+    column: $table.originalDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4338,6 +5402,11 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get timezone => $composableBuilder(
     column: $table.timezone,
     builder: (column) => ColumnOrderings(column),
@@ -4375,6 +5444,16 @@ class $$ItemsTableOrderingComposer
 
   ColumnOrderings<String> get rrule => $composableBuilder(
     column: $table.rrule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get seriesId => $composableBuilder(
+    column: $table.seriesId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originalDate => $composableBuilder(
+    column: $table.originalDate,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4465,6 +5544,9 @@ class $$ItemsTableAnnotationComposer
   GeneratedColumn<String> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
+  GeneratedColumn<String> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
   GeneratedColumn<String> get timezone =>
       $composableBuilder(column: $table.timezone, builder: (column) => column);
 
@@ -4494,6 +5576,14 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<String> get rrule =>
       $composableBuilder(column: $table.rrule, builder: (column) => column);
+
+  GeneratedColumn<String> get seriesId =>
+      $composableBuilder(column: $table.seriesId, builder: (column) => column);
+
+  GeneratedColumn<String> get originalDate => $composableBuilder(
+    column: $table.originalDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get googleEventId => $composableBuilder(
     column: $table.googleEventId,
@@ -4604,6 +5694,7 @@ class $$ItemsTableTableManager
                 Value<int?> startAt = const Value.absent(),
                 Value<int?> endAt = const Value.absent(),
                 Value<String?> date = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
                 Value<String?> timezone = const Value.absent(),
                 Value<int?> doneAt = const Value.absent(),
                 Value<int> priority = const Value.absent(),
@@ -4612,6 +5703,8 @@ class $$ItemsTableTableManager
                 Value<String?> lifecycleAnchorDate = const Value.absent(),
                 Value<int?> snoozedUntil = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
+                Value<String?> seriesId = const Value.absent(),
+                Value<String?> originalDate = const Value.absent(),
                 Value<String?> calendarId = const Value.absent(),
                 Value<String?> googleEventId = const Value.absent(),
                 Value<String?> googleEtag = const Value.absent(),
@@ -4629,6 +5722,7 @@ class $$ItemsTableTableManager
                 startAt: startAt,
                 endAt: endAt,
                 date: date,
+                endDate: endDate,
                 timezone: timezone,
                 doneAt: doneAt,
                 priority: priority,
@@ -4637,6 +5731,8 @@ class $$ItemsTableTableManager
                 lifecycleAnchorDate: lifecycleAnchorDate,
                 snoozedUntil: snoozedUntil,
                 rrule: rrule,
+                seriesId: seriesId,
+                originalDate: originalDate,
                 calendarId: calendarId,
                 googleEventId: googleEventId,
                 googleEtag: googleEtag,
@@ -4656,6 +5752,7 @@ class $$ItemsTableTableManager
                 Value<int?> startAt = const Value.absent(),
                 Value<int?> endAt = const Value.absent(),
                 Value<String?> date = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
                 Value<String?> timezone = const Value.absent(),
                 Value<int?> doneAt = const Value.absent(),
                 Value<int> priority = const Value.absent(),
@@ -4664,6 +5761,8 @@ class $$ItemsTableTableManager
                 Value<String?> lifecycleAnchorDate = const Value.absent(),
                 Value<int?> snoozedUntil = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
+                Value<String?> seriesId = const Value.absent(),
+                Value<String?> originalDate = const Value.absent(),
                 Value<String?> calendarId = const Value.absent(),
                 Value<String?> googleEventId = const Value.absent(),
                 Value<String?> googleEtag = const Value.absent(),
@@ -4681,6 +5780,7 @@ class $$ItemsTableTableManager
                 startAt: startAt,
                 endAt: endAt,
                 date: date,
+                endDate: endDate,
                 timezone: timezone,
                 doneAt: doneAt,
                 priority: priority,
@@ -4689,6 +5789,8 @@ class $$ItemsTableTableManager
                 lifecycleAnchorDate: lifecycleAnchorDate,
                 snoozedUntil: snoozedUntil,
                 rrule: rrule,
+                seriesId: seriesId,
+                originalDate: originalDate,
                 calendarId: calendarId,
                 googleEventId: googleEventId,
                 googleEtag: googleEtag,
@@ -5451,6 +6553,672 @@ typedef $$SettingsTableProcessedTableManager =
       Setting,
       PrefetchHooks Function()
     >;
+typedef $$HabitsTableCreateCompanionBuilder = HabitsCompanion Function({
+  required String id,
+  required String title,
+  Value<String?> weekdays,
+  Value<int?> target,
+  Value<int> color,
+  required String startDate,
+  Value<int> sortOrder,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$HabitsTableUpdateCompanionBuilder = HabitsCompanion Function({
+  Value<String> id,
+  Value<String> title,
+  Value<String?> weekdays,
+  Value<int?> target,
+  Value<int> color,
+  Value<String> startDate,
+  Value<int> sortOrder,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+final class $$HabitsTableReferences
+    extends BaseReferences<_$AppDatabase, $HabitsTable, HabitRow> {
+  $$HabitsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$HabitLogsTable, List<HabitLogRow>>
+  _habitLogsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.habitLogs,
+    aliasName: 'habits__id__habit_logs__habit_id',
+  );
+
+  $$HabitLogsTableProcessedTableManager get habitLogsRefs {
+    final manager = $$HabitLogsTableTableManager(
+      $_db,
+      $_db.habitLogs,
+    ).filter((f) => f.habitId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_habitLogsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$HabitsTableFilterComposer
+    extends Composer<_$AppDatabase, $HabitsTable> {
+  $$HabitsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weekdays => $composableBuilder(
+    column: $table.weekdays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get target => $composableBuilder(
+    column: $table.target,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> habitLogsRefs(
+    Expression<bool> Function($$HabitLogsTableFilterComposer f) f,
+  ) {
+    final $$HabitLogsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.habitLogs,
+      getReferencedColumn: (t) => t.habitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitLogsTableFilterComposer(
+            $db: $db,
+            $table: $db.habitLogs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$HabitsTableOrderingComposer
+    extends Composer<_$AppDatabase, $HabitsTable> {
+  $$HabitsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get weekdays => $composableBuilder(
+    column: $table.weekdays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get target => $composableBuilder(
+    column: $table.target,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$HabitsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HabitsTable> {
+  $$HabitsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get weekdays =>
+      $composableBuilder(column: $table.weekdays, builder: (column) => column);
+
+  GeneratedColumn<int> get target =>
+      $composableBuilder(column: $table.target, builder: (column) => column);
+
+  GeneratedColumn<int> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<String> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> habitLogsRefs<T extends Object>(
+    Expression<T> Function($$HabitLogsTableAnnotationComposer a) f,
+  ) {
+    final $$HabitLogsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.habitLogs,
+      getReferencedColumn: (t) => t.habitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitLogsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.habitLogs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$HabitsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HabitsTable,
+          HabitRow,
+          $$HabitsTableFilterComposer,
+          $$HabitsTableOrderingComposer,
+          $$HabitsTableAnnotationComposer,
+          $$HabitsTableCreateCompanionBuilder,
+          $$HabitsTableUpdateCompanionBuilder,
+          (HabitRow, $$HabitsTableReferences),
+          HabitRow,
+          PrefetchHooks Function({bool habitLogsRefs})
+        > {
+  $$HabitsTableTableManager(_$AppDatabase db, $HabitsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HabitsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HabitsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HabitsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> weekdays = const Value.absent(),
+                Value<int?> target = const Value.absent(),
+                Value<int> color = const Value.absent(),
+                Value<String> startDate = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HabitsCompanion(
+                id: id,
+                title: title,
+                weekdays: weekdays,
+                target: target,
+                color: color,
+                startDate: startDate,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String title,
+                Value<String?> weekdays = const Value.absent(),
+                Value<int?> target = const Value.absent(),
+                Value<int> color = const Value.absent(),
+                required String startDate,
+                Value<int> sortOrder = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => HabitsCompanion.insert(
+                id: id,
+                title: title,
+                weekdays: weekdays,
+                target: target,
+                color: color,
+                startDate: startDate,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$HabitsTable, HabitRow>(table),
+                  $$HabitsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({habitLogsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (habitLogsRefs) db.habitLogs],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (habitLogsRefs)
+                    await $_getPrefetchedDataByColumns<
+                      HabitRow,
+                      $HabitsTable,
+                      HabitLogRow,
+                      $HabitLogsTable
+                    >(
+                      currentTable: table,
+                      referencedTable: $$HabitsTableReferences
+                          ._habitLogsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$HabitsTableReferences(db, table, p0).habitLogsRefs,
+                      currentColumn: 'id',
+                      referencedColumn: 'habit_id',
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$HabitsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HabitsTable,
+      HabitRow,
+      $$HabitsTableFilterComposer,
+      $$HabitsTableOrderingComposer,
+      $$HabitsTableAnnotationComposer,
+      $$HabitsTableCreateCompanionBuilder,
+      $$HabitsTableUpdateCompanionBuilder,
+      (HabitRow, $$HabitsTableReferences),
+      HabitRow,
+      PrefetchHooks Function({bool habitLogsRefs})
+    >;
+typedef $$HabitLogsTableCreateCompanionBuilder = HabitLogsCompanion Function({
+  required String habitId,
+  required String date,
+  required int count,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$HabitLogsTableUpdateCompanionBuilder = HabitLogsCompanion Function({
+  Value<String> habitId,
+  Value<String> date,
+  Value<int> count,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+final class $$HabitLogsTableReferences
+    extends BaseReferences<_$AppDatabase, $HabitLogsTable, HabitLogRow> {
+  $$HabitLogsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $HabitsTable _habitIdTable(_$AppDatabase db) =>
+      db.habits.createAlias('habit_logs__habit_id__habits__id');
+
+  $$HabitsTableProcessedTableManager get habitId {
+    final $_column = $_itemColumn<String>('habit_id')!;
+
+    final manager = $$HabitsTableTableManager(
+      $_db,
+      $_db.habits,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_habitIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$HabitLogsTableFilterComposer
+    extends Composer<_$AppDatabase, $HabitLogsTable> {
+  $$HabitLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$HabitsTableFilterComposer get habitId {
+    final $$HabitsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableFilterComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitLogsTableOrderingComposer
+    extends Composer<_$AppDatabase, $HabitLogsTable> {
+  $$HabitLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$HabitsTableOrderingComposer get habitId {
+    final $$HabitsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableOrderingComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitLogsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HabitLogsTable> {
+  $$HabitLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<int> get count =>
+      $composableBuilder(column: $table.count, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$HabitsTableAnnotationComposer get habitId {
+    final $$HabitsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitLogsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HabitLogsTable,
+          HabitLogRow,
+          $$HabitLogsTableFilterComposer,
+          $$HabitLogsTableOrderingComposer,
+          $$HabitLogsTableAnnotationComposer,
+          $$HabitLogsTableCreateCompanionBuilder,
+          $$HabitLogsTableUpdateCompanionBuilder,
+          (HabitLogRow, $$HabitLogsTableReferences),
+          HabitLogRow,
+          PrefetchHooks Function({bool habitId})
+        > {
+  $$HabitLogsTableTableManager(_$AppDatabase db, $HabitLogsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HabitLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HabitLogsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HabitLogsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> habitId = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<int> count = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HabitLogsCompanion(
+                habitId: habitId,
+                date: date,
+                count: count,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String habitId,
+                required String date,
+                required int count,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => HabitLogsCompanion.insert(
+                habitId: habitId,
+                date: date,
+                count: count,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$HabitLogsTable, HabitLogRow>(table),
+                  $$HabitLogsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({habitId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (habitId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.habitId,
+                        referencedTable: $$HabitLogsTableReferences
+                            ._habitIdTable(db),
+                        referencedColumn: $$HabitLogsTableReferences
+                            ._habitIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$HabitLogsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HabitLogsTable,
+      HabitLogRow,
+      $$HabitLogsTableFilterComposer,
+      $$HabitLogsTableOrderingComposer,
+      $$HabitLogsTableAnnotationComposer,
+      $$HabitLogsTableCreateCompanionBuilder,
+      $$HabitLogsTableUpdateCompanionBuilder,
+      (HabitLogRow, $$HabitLogsTableReferences),
+      HabitLogRow,
+      PrefetchHooks Function({bool habitId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5467,4 +7235,8 @@ class $AppDatabaseManager {
       $$SyncQueueTableTableManager(_db, _db.syncQueue);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
+  $$HabitsTableTableManager get habits =>
+      $$HabitsTableTableManager(_db, _db.habits);
+  $$HabitLogsTableTableManager get habitLogs =>
+      $$HabitLogsTableTableManager(_db, _db.habitLogs);
 }

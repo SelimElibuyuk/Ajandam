@@ -127,6 +127,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         _dx = 0;
       });
     });
+    // Widget'tan bir alışkanlık açılınca takvimi Ay ekranında görünür.
+    ref.listen(selectedHabitProvider, (_, id) {
+      if (id != null && _page != _month) {
+        setState(() {
+          _page = _month;
+          _dx = 0;
+        });
+      }
+    });
 
     return Scaffold(
       // Metin alanları popup içinde; klavye açılırken ekran yeniden hesaplanmaz.

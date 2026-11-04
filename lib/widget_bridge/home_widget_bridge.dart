@@ -3,14 +3,41 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../domain/dates.dart';
+import '../domain/habit_service.dart';
 import '../domain/widget_snapshot.dart';
 
 const _receiver = 'com.selimelibuyuk.ajandam.widget.AjandamWidgetReceiver';
+const _habitReceiver = 'com.selimelibuyuk.ajandam.widget.HabitWidgetReceiver';
 const _snapshotKey = 'snapshot';
 const _pendingKey = 'pending_actions';
+const _habitsKey = 'habits';
+const _habitPendingKey = 'habit_actions';
 
-class HomeWidgetBridge implements WidgetGateway {
+class HomeWidgetBridge implements WidgetGateway, HabitWidgetGateway {
   const HomeWidgetBridge();
+
+  @override
+  Future<void> publishHabits(String snapshot) async {
+    await HomeWidget.saveWidgetData<String>(_habitsKey, snapshot);
+    await HomeWidget.updateWidget(qualifiedAndroidName: _habitReceiver);
+  }
+
+  @override
+  Future<List<HabitAction>> takeHabitActions() async {
+    final raw = await HomeWidget.getWidgetData<String>(_habitPendingKey);
+    if (raw == null) return const [];
+    await HomeWidget.saveWidgetData<String>(_habitPendingKey, null);
+    return [
+      for (final entry in jsonDecode(raw) as List)
+        HabitAction(
+          habitId: entry['id'] as String,
+          day: parseDayKey(entry['day'] as String),
+          count: entry['count'] as int,
+          at: DateTime.fromMillisecondsSinceEpoch(entry['at'] as int),
+        ),
+    ];
+  }
 
   @override
   Future<void> publish(String snapshot, List<DateTime> refreshTimes) async {

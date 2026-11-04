@@ -17,6 +17,7 @@ data class WidgetItem(
     val startMs: Long?,
     val endMs: Long?,
     val day: String,
+    val recurring: Boolean,
 ) {
     fun isFinished(now: Long): Boolean = done || (!isTask && endMs != null && endMs < now)
 
@@ -27,27 +28,37 @@ data class WidgetItem(
 /** Uygulamanın yazdığı anlık görüntü. Widget ağa çıkmaz, yalnızca bunu okur. */
 class Snapshot(
     val tapMode: String,
-    val theme: String,
+    val appearance: WidgetAppearance,
     private val days: Map<String, List<WidgetItem>>,
 ) {
-    /** Sıra: süresi geçenler, saatliler, saatsizler. Dünden kalanlar da eklenir. */
+    /**
+     * Sıra: saatliler en yakından, sonra saatsizler, en altta bitenler.
+     * Dünden kalanlar da eklenir ve saatsizlerin başında durur, tekrarlar
+     * kendi gününde kalır.
+     */
     fun itemsFor(today: LocalDate, now: Long): List<WidgetItem> {
         val carried =
-            days[today.minusDays(1).toString()].orEmpty().filter { it.isTask && !it.done }
+            days[today.minusDays(1).toString()].orEmpty().filter {
+                it.isTask && !it.done && !it.recurring
+            }
         val all = (carried + days[today.toString()].orEmpty()).distinctBy { it.id }
-        val (overdue, rest) = all.partition { it.isOverdue(now) }
-        val (timed, untimed) = rest.partition { it.startMs != null }
-        return overdue + timed.sortedBy { it.startMs } + untimed
+        val (finished, open) = all.partition { it.isFinished(now) }
+        return byTime(open) + byTime(finished)
+    }
+
+    private fun byTime(items: List<WidgetItem>): List<WidgetItem> {
+        val (timed, untimed) = items.partition { it.startMs != null }
+        return timed.sortedBy { it.startMs } + untimed
     }
 
     companion object {
         fun read(preferences: SharedPreferences): Snapshot {
             val raw = preferences.getString(SNAPSHOT_KEY, null)
-                ?: return Snapshot("week_view", "dark", emptyMap())
+                ?: return Snapshot("week_view", WidgetAppearance.DEFAULT, emptyMap())
             return try {
                 parse(JSONObject(raw))
             } catch (_: org.json.JSONException) {
-                Snapshot("week_view", "dark", emptyMap())
+                Snapshot("week_view", WidgetAppearance.DEFAULT, emptyMap())
             }
         }
 
@@ -60,7 +71,7 @@ class Snapshot(
                 val items = day.getJSONArray("items")
                 days[date] = List(items.length()) { parseItem(items.getJSONObject(it), date) }
             }
-            return Snapshot(json.optString("tapMode", "week_view"), json.optString("theme", "dark"), days)
+            return Snapshot(json.optString("tapMode", "week_view"), WidgetAppearance.parse(json), days)
         }
 
         private fun parseItem(json: JSONObject, day: String) =
@@ -73,6 +84,7 @@ class Snapshot(
                 startMs = json.optLong("startMs").takeIf { json.has("startMs") },
                 endMs = json.optLong("endMs").takeIf { json.has("endMs") },
                 day = json.optString("day", day),
+                recurring = json.optBoolean("recurring"),
             )
 
         /** Durumu anlık görüntüde çevirir ve Dart'ın işleyeceği sıraya ekler. */

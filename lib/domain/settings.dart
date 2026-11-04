@@ -10,6 +10,9 @@ class AppSettings {
     this.lifecycleIntervalDays = 2,
     this.theme = 'dark',
     this.widgetTapMode = 'week_view',
+    this.palette = 'nocturne',
+    this.widgetOpacity = 100,
+    this.widgetRadius = 16,
   });
 
   final int weekStart;
@@ -24,6 +27,15 @@ class AppSettings {
 
   /// Widget gövdesine dokununca: quick_add | week_view
   final String widgetTapMode;
+
+  /// Renk teması, bkz. palettes.dart
+  final String palette;
+
+  /// Widget arka planının saydamlığı, 0–100 (100 tam opak).
+  final int widgetOpacity;
+
+  /// Widget köşe yuvarlaklığı, dp.
+  final int widgetRadius;
 
   LifecycleRule get lifecycle => LifecycleRule(
     enabled: lifecycleEnabled,
@@ -40,6 +52,9 @@ class AppSettings {
     int? lifecycleIntervalDays,
     String? theme,
     String? widgetTapMode,
+    String? palette,
+    int? widgetOpacity,
+    int? widgetRadius,
   }) => AppSettings(
     weekStart: weekStart ?? this.weekStart,
     defaultReminderMin: defaultReminderMin ?? this.defaultReminderMin,
@@ -49,5 +64,8 @@ class AppSettings {
     lifecycleIntervalDays: lifecycleIntervalDays ?? this.lifecycleIntervalDays,
     theme: theme ?? this.theme,
     widgetTapMode: widgetTapMode ?? this.widgetTapMode,
+    palette: palette ?? this.palette,
+    widgetOpacity: widgetOpacity ?? this.widgetOpacity,
+    widgetRadius: widgetRadius ?? this.widgetRadius,
   );
 }

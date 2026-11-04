@@ -4,14 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/db/app_database.dart';
+import '../data/repositories/habit_repository.dart';
 import '../data/repositories/item_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../domain/dates.dart';
+import '../domain/habit.dart';
+import '../domain/habit_service.dart';
 import '../domain/item.dart';
 import '../domain/item_service.dart';
 import '../domain/settings.dart';
 import '../domain/widget_snapshot.dart';
 import '../notifications/notification_service.dart';
+import '../voice/voice_input.dart';
 import '../widget_bridge/home_widget_bridge.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -37,6 +41,8 @@ final widgetGatewayProvider = Provider<WidgetGateway>(
 );
 
 final widgetLinksProvider = Provider((ref) => const WidgetLinks());
+
+final voiceInputProvider = Provider<VoiceInput>((ref) => SpeechVoiceInput());
 
 /// Hafta ekranını bir güne getirme isteği, ör. widget'tan gelince.
 class WeekFocus {
@@ -137,4 +143,45 @@ final itemProvider = StreamProvider.autoDispose.family<AgendaItem?, String>(
 
 final trashProvider = StreamProvider.autoDispose<List<AgendaItem>>(
   (ref) => ref.watch(itemRepositoryProvider).watchTrash(),
+);
+
+final habitRepositoryProvider = Provider(
+  (ref) => HabitRepository(ref.watch(databaseProvider)),
+);
+
+final habitWidgetProvider = Provider<HabitWidgetGateway>(
+  (ref) => const HomeWidgetBridge(),
+);
+
+final habitServiceProvider = Provider((ref) {
+  final service = HabitService(
+    store: ref.watch(habitRepositoryProvider),
+    settings: ref.watch(settingsRepositoryProvider),
+    newId: const Uuid().v7,
+    widget: ref.watch(habitWidgetProvider),
+    deferPublish: true,
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final habitsProvider = StreamProvider<List<Habit>>(
+  (ref) => ref.watch(habitRepositoryProvider).watchHabits(),
+);
+
+final habitHistoryProvider = StreamProvider.autoDispose
+    .family<Map<DateTime, int>, String>(
+      (ref, id) => ref.watch(habitRepositoryProvider).watchHistory(id),
+    );
+
+/// Ay ekranında gösterilen takvim: null ise ajanda, değilse alışkanlık.
+class SelectedHabitNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? id) => state = id;
+}
+
+final selectedHabitProvider = NotifierProvider<SelectedHabitNotifier, String?>(
+  SelectedHabitNotifier.new,
 );

@@ -1,4 +1,5 @@
 import 'dates.dart';
+import 'recurrence.dart';
 
 enum ItemKind { task, event }
 
@@ -22,6 +23,10 @@ class AgendaItem {
     this.reminderMin,
     this.snoozedUntil,
     this.deletedAt,
+    this.endDay,
+    this.recurrence,
+    this.seriesId,
+    this.originalDay,
   });
 
   final String id;
@@ -47,14 +52,55 @@ class AgendaItem {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Birkaç gün süren tüm gün etkinliğin son günü, dahil.
+  final DateTime? endDay;
+
+  /// Serinin kuralı. Serinin kendisi listelerde görünmez, tekrarları görünür.
+  final Recurrence? recurrence;
+
+  /// Tekrarsa ait olduğu seri ve serideki asıl günü.
+  final String? seriesId;
+  final DateTime? originalDay;
+
   bool get isTask => kind == ItemKind.task;
   bool get isDone => doneAt != null;
   bool get isTimed => start != null;
   bool get isDeleted => deletedAt != null;
+  bool get isSeries => recurrence != null && seriesId == null;
+  bool get isOccurrence => seriesId != null;
+  DateTime get lastDay => endDay ?? day;
 
   /// Görev elle tamamlanır, etkinlik süresi geçince kendiliğinden biter.
-  bool isFinished(DateTime now) =>
-      isDone || (!isTask && end != null && end!.isBefore(now));
+  bool isFinished(DateTime now) {
+    if (isDone) return true;
+    if (isTask) return false;
+    if (end != null) return end!.isBefore(now);
+    return start == null && lastDay.isBefore(dayOnly(now));
+  }
+
+  bool coversDay(DateTime d) => !d.isBefore(day) && !d.isAfter(lastDay);
+
+  /// Serinin [target] günündeki tekrarı.
+  AgendaItem occurrenceOn(DateTime target) {
+    final shift = daysBetween(day, target);
+    return AgendaItem(
+      id: occurrenceId(id, target),
+      kind: kind,
+      title: title,
+      notes: notes,
+      day: dayOnly(target),
+      start: start == null ? null : addDays(start!, shift),
+      end: end == null ? null : addDays(end!, shift),
+      endDay: endDay == null ? null : addDays(endDay!, shift),
+      important: important,
+      reminderMin: reminderMin,
+      recurrence: recurrence,
+      seriesId: id,
+      originalDay: dayOnly(target),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
 
   bool isOverdue(DateTime now) {
     if (!isTask || isDone) return false;
@@ -69,12 +115,14 @@ class AgendaItem {
       day: dayOnly(target),
       start: start == null ? null : addDays(start!, shift),
       end: end == null ? null : addDays(end!, shift),
+      endDay: endDay == null ? null : addDays(endDay!, shift),
       rolledCount: rolledCount + rolledBy,
       snoozedUntil: null,
     );
   }
 
   AgendaItem copyWith({
+    String? id,
     ItemKind? kind,
     String? title,
     Object? notes = _keep,
@@ -88,9 +136,14 @@ class AgendaItem {
     Object? reminderMin = _keep,
     Object? snoozedUntil = _keep,
     Object? deletedAt = _keep,
+    Object? endDay = _keep,
+    Object? recurrence = _keep,
+    Object? seriesId = _keep,
+    Object? originalDay = _keep,
+    DateTime? createdAt,
     DateTime? updatedAt,
   }) => AgendaItem(
-    id: id,
+    id: id ?? this.id,
     kind: kind ?? this.kind,
     title: title ?? this.title,
     notes: identical(notes, _keep) ? this.notes : notes as String?,
@@ -112,7 +165,15 @@ class AgendaItem {
     deletedAt: identical(deletedAt, _keep)
         ? this.deletedAt
         : deletedAt as DateTime?,
-    createdAt: createdAt,
+    endDay: identical(endDay, _keep) ? this.endDay : endDay as DateTime?,
+    recurrence: identical(recurrence, _keep)
+        ? this.recurrence
+        : recurrence as Recurrence?,
+    seriesId: identical(seriesId, _keep) ? this.seriesId : seriesId as String?,
+    originalDay: identical(originalDay, _keep)
+        ? this.originalDay
+        : originalDay as DateTime?,
+    createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
 }

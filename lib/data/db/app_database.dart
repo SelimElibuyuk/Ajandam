@@ -6,7 +6,16 @@ import 'tables.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [Accounts, Calendars, Items, Reminders, SyncQueue, Settings],
+  tables: [
+    Accounts,
+    Calendars,
+    Items,
+    Reminders,
+    SyncQueue,
+    Settings,
+    Habits,
+    HabitLogs,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
@@ -19,10 +28,22 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(items, items.endDate);
+        await m.addColumn(items, items.seriesId);
+        await m.addColumn(items, items.originalDate);
+        await m.createIndex(itemsSeriesId);
+      }
+      if (from < 3) {
+        await m.createTable(habits);
+        await m.createTable(habitLogs);
+      }
+    },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
 }
