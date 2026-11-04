@@ -18,6 +18,7 @@ class AppHeader extends StatelessWidget {
       height: 56,
       padding: const EdgeInsets.only(left: 16, right: 8),
       decoration: BoxDecoration(
+        color: c.header,
         border: Border(bottom: BorderSide(color: c.hairline)),
       ),
       child: Row(

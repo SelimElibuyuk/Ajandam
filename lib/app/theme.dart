@@ -2,10 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../domain/palettes.dart';
 
+/// Kartlar ve üst bant temanın vurgu rengine hafifçe bürünür.
+const _cardTint = 0.04;
+const _headerTint = 0.07;
+
+Color _tinted(Color base, Color accent, double amount) =>
+    Color.alphaBlend(accent.withValues(alpha: amount), base);
+
+/// Çiplerin renk aileleri; temadan bağımsız, açık ve koyu kipte okunur.
+/// null, temanın kendi vurgu rengidir.
+enum ChipHue {
+  accent(null),
+  time(0xFF4FA3A8),
+  repeat(0xFFB477C4),
+  duration(0xFFD39A4E),
+  reminder(0xFFD3706B);
+
+  const ChipHue(this.value);
+
+  final int? value;
+}
+
+/// Renkli bir öğenin hafif zemini ve üstündeki yazı rengi.
+typedef Tone = ({Color background, Color foreground});
+
 /// Seçili renk temasının uygulamadaki renkleri, bkz. palettes.dart.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
+    required this.dark,
     required this.surface,
     required this.low,
     required this.container,
@@ -19,12 +44,13 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.accentText,
     required this.onAccent,
     required this.danger,
+    required this.header,
   });
 
-  AppColors.from(PaletteColors p)
+  AppColors.from(PaletteColors p, {required this.dark})
     : surface = Color(p.surface),
-      low = Color(p.low),
-      container = Color(p.container),
+      low = _tinted(Color(p.low), Color(p.accent), _cardTint),
+      container = _tinted(Color(p.container), Color(p.accent), _cardTint),
       high = Color(p.high),
       hairline = Color(p.hairline),
       muted = Color(p.muted),
@@ -34,8 +60,10 @@ class AppColors extends ThemeExtension<AppColors> {
       accentSoft = Color(p.accentSoft),
       accentText = Color(p.accentText),
       onAccent = Color(p.onAccent),
-      danger = Color(p.danger);
+      danger = Color(p.danger),
+      header = _tinted(Color(p.surface), Color(p.accent), _headerTint);
 
+  final bool dark;
   final Color surface;
   final Color low;
   final Color container;
@@ -49,6 +77,23 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color accentText;
   final Color onAccent;
   final Color danger;
+
+  /// Üst bant ve alt menü zemini.
+  final Color header;
+
+  /// Hafif renkli zemin ve okunur yazı: etkinlik kartları, çipler.
+  Tone tone([ChipHue hue = ChipHue.accent]) {
+    final base = hue.value == null ? accent : Color(hue.value!);
+    return (
+      background: Color.alphaBlend(
+        base.withValues(alpha: dark ? 0.2 : 0.14),
+        surface,
+      ),
+      foreground: hue.value == null
+          ? accentText
+          : Color.lerp(base, dark ? Colors.white : Colors.black, 0.4)!,
+    );
+  }
 
   @override
   AppColors copyWith() => this;
@@ -64,7 +109,10 @@ extension AppThemeContext on BuildContext {
 }
 
 const _serif = 'Newsreader';
-const _mono = 'JetBrainsMono';
+const _sans = 'PlusJakartaSans';
+
+/// Saatlerde rakamlar aynı genişlikte durur, sütunlar kaymaz.
+const _tabular = [FontFeature.tabularFigures()];
 
 TextTheme _textTheme(AppColors c) {
   TextStyle serif(double size, double height, FontWeight weight) => TextStyle(
@@ -74,21 +122,23 @@ TextTheme _textTheme(AppColors c) {
     fontWeight: weight,
     color: c.text,
   );
-  TextStyle mono(double size, double height, double tracking, FontWeight w) =>
-      TextStyle(
-        fontFamily: _mono,
-        fontSize: size,
-        height: height / size,
-        letterSpacing: size * tracking,
-        fontWeight: w,
-        color: c.textSoft,
-      );
   TextStyle sans(double size, double height) => TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: _sans,
     fontSize: size,
     height: height / size,
     color: c.text,
   );
+  // Etiketler, saatler ve çipler: aynı yazı tipi, hafif aralıklı.
+  TextStyle label(double size, double height, double tracking, FontWeight w) =>
+      TextStyle(
+        fontFamily: _sans,
+        fontSize: size,
+        height: height / size,
+        letterSpacing: size * tracking,
+        fontWeight: w,
+        fontFeatures: _tabular,
+        color: c.textSoft,
+      );
 
   return TextTheme(
     headlineLarge: serif(28, 36, FontWeight.w400),
@@ -100,16 +150,15 @@ TextTheme _textTheme(AppColors c) {
     bodyLarge: sans(16, 24),
     bodyMedium: sans(14, 20),
     bodySmall: sans(12, 18),
-    labelLarge: mono(13, 18, 0.02, FontWeight.w500),
-    labelMedium: mono(11, 16, 0.04, FontWeight.w500),
-    labelSmall: mono(10, 14, 0.05, FontWeight.w400),
+    labelLarge: label(13, 18, 0.01, FontWeight.w600),
+    labelMedium: label(12, 16, 0.02, FontWeight.w600),
+    labelSmall: label(11, 14, 0.03, FontWeight.w500),
   );
 }
 
 ThemeData buildTheme(Brightness brightness, {ColorPalette palette = nocturne}) {
-  final c = AppColors.from(
-    brightness == Brightness.dark ? palette.dark : palette.light,
-  );
+  final dark = brightness == Brightness.dark;
+  final c = AppColors.from(dark ? palette.dark : palette.light, dark: dark);
   final scheme = ColorScheme(
     brightness: brightness,
     primary: c.accent,
@@ -136,7 +185,7 @@ ThemeData buildTheme(Brightness brightness, {ColorPalette palette = nocturne}) {
   return ThemeData(
     brightness: brightness,
     colorScheme: scheme,
-    fontFamily: 'Inter',
+    fontFamily: _sans,
     textTheme: _textTheme(c),
     scaffoldBackgroundColor: c.surface,
     extensions: [c],

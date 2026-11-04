@@ -83,6 +83,6 @@ dart run build_runner build --delete-conflicting-outputs
 
 Flutter, Riverpod, go_router, drift (SQLite), flutter_local_notifications, workmanager. Widget Kotlin ve Jetpack Glance ile yazıldı, köprü home_widget.
 
-Arayüz Stitch'teki Nocturne Agenda tasarımını izler. Newsreader, Inter ve JetBrains Mono yazı tipleri (SIL Open Font License) `assets/fonts` içinde gömülüdür.
+Arayüz Stitch'teki Nocturne Agenda tasarımını izler. Newsreader (başlıklar) ve Plus Jakarta Sans (metin) yazı tipleri (SIL Open Font License) `assets/fonts` içinde gömülüdür.
 
 Uygulama kimliği: `com.selimelibuyuk.ajandam`

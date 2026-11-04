@@ -363,7 +363,7 @@ private fun ItemRow(
                     TextStyle(
                         color = ColorProvider(if (overdue) colors.danger else colors.accentText),
                         fontSize = metrics.timeSize.sp,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = FontFamily.SansSerif,
                     ),
             )
         }

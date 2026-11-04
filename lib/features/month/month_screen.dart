@@ -300,14 +300,17 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final Color textColor;
+    final Color? fill;
     if (isSelected) {
       textColor = c.onAccent;
+      fill = c.accent;
     } else if (isToday) {
       textColor = c.accentText;
-    } else if (_isWeekend(day)) {
-      textColor = c.muted;
+      fill = c.accentSoft;
     } else {
-      textColor = c.text;
+      textColor = _isWeekend(day) ? c.muted : c.text;
+      // Dolu günler hafif renkli zeminle öne çıkar.
+      fill = items.isNotEmpty ? c.accent.withValues(alpha: 0.1) : null;
     }
 
     final cell = AspectRatio(
@@ -315,8 +318,8 @@ class _DayCell extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: isSelected ? c.accent : null,
-          borderRadius: BorderRadius.circular(4),
+          color: fill,
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

@@ -165,7 +165,7 @@ class HabitWidgetConfigActivity : Activity() {
         texts.addView(text(rule, 12f, colors.muted))
         row.addView(texts, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         if (selected) {
-            row.addView(text("Seçili", 12f, colors.accentText).apply { typeface = Typeface.MONOSPACE })
+            row.addView(text("Seçili", 12f, colors.accentText).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
         }
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -175,7 +175,7 @@ class HabitWidgetConfigActivity : Activity() {
 
     private fun label(value: String) =
         text(value, 11f, colors.muted).apply {
-            typeface = Typeface.MONOSPACE
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             letterSpacing = 0.08f
         }
 

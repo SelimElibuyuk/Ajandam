@@ -33,20 +33,17 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   fonts:
-    - family: Inter
+    - family: PlusJakartaSans
       fonts:
-        - asset: assets/fonts/Inter-400.ttf
-        - asset: assets/fonts/Inter-500.ttf
+        - asset: assets/fonts/PlusJakartaSans-400.ttf
+        - asset: assets/fonts/PlusJakartaSans-500.ttf
           weight: 500
-        - asset: assets/fonts/Inter-600.ttf
+        - asset: assets/fonts/PlusJakartaSans-600.ttf
           weight: 600
+        - asset: assets/fonts/PlusJakartaSans-700.ttf
+          weight: 700
     - family: Newsreader
       fonts:
         - asset: assets/fonts/Newsreader-400.ttf
         - asset: assets/fonts/Newsreader-500.ttf
-          weight: 500
-    - family: JetBrainsMono
-      fonts:
-        - asset: assets/fonts/JetBrainsMono-400.ttf
-        - asset: assets/fonts/JetBrainsMono-500.ttf
           weight: 500

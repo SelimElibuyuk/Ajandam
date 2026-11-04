@@ -178,7 +178,9 @@ void main() {
         expect(loaded.palette, 'orman');
         expect(loaded.widgetOpacity, 60);
         expect(loaded.widgetRadius, 24);
-        expect(paletteById(loaded.palette).id, 'nocturne');
+        expect(paletteById(loaded.palette).name, 'Orman');
+        expect(paletteById('silinmis').id, 'nocturne');
+        expect(palettes.map((p) => p.id).toSet(), hasLength(6));
       },
     );
 

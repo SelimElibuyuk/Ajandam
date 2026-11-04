@@ -181,6 +181,7 @@ class _BottomNav extends StatelessWidget {
     final c = context.colors;
     return Container(
       decoration: BoxDecoration(
+        color: c.header,
         border: Border(top: BorderSide(color: c.hairline)),
       ),
       child: SafeArea(

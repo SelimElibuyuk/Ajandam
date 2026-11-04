@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../domain/palettes.dart';
 import '../../domain/settings.dart';
 import '../../ui/labels.dart';
 import '../../widget_bridge/home_widget_bridge.dart';
@@ -14,6 +15,7 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _update(WidgetRef ref, AppSettings next) async {
     await ref.read(settingsRepositoryProvider).save(next);
     await ref.read(itemServiceProvider).replan();
+    await ref.read(habitServiceProvider).publishWidget();
   }
 
   @override
@@ -75,8 +77,12 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
           const _Header('Görünüm'),
+          _PalettePicker(
+            selected: s.palette,
+            onChanged: (id) => _update(ref, s.copyWith(palette: id)),
+          ),
           _Choice<String>(
-            title: 'Tema',
+            title: 'Açık / koyu',
             value: s.theme,
             options: const {
               'system': 'Sistem',
@@ -197,6 +203,123 @@ class _Choice<T> extends StatelessWidget {
         onChanged: (v) {
           if (v != null) onChanged(v);
         },
+      ),
+    );
+  }
+}
+
+/// Renk temaları: her biri kendi zemininde vurgu rengiyle küçük bir örnek.
+/// Örnek, şu anki açık/koyu kipine göre gösterilir.
+class _PalettePicker extends StatelessWidget {
+  const _PalettePicker({required this.selected, required this.onChanged});
+
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final current = paletteById(selected).id;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text('Renk teması', style: context.type.bodyLarge),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final palette in palettes)
+                _PaletteSwatch(
+                  palette: palette,
+                  colors: dark ? palette.dark : palette.light,
+                  selected: palette.id == current,
+                  outline: c.accent,
+                  hairline: c.hairline,
+                  onTap: () => onChanged(palette.id),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaletteSwatch extends StatelessWidget {
+  const _PaletteSwatch({
+    required this.palette,
+    required this.colors,
+    required this.selected,
+    required this.outline,
+    required this.hairline,
+    required this.onTap,
+  });
+
+  final ColorPalette palette;
+  final PaletteColors colors;
+  final bool selected;
+  final Color outline;
+  final Color hairline;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${palette.name} teması',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 100,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Color(colors.surface),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? outline : hairline,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  for (final color in [
+                    colors.accent,
+                    colors.accentText,
+                    colors.container,
+                  ])
+                    Container(
+                      width: 16,
+                      height: 16,
+                      margin: const EdgeInsets.only(right: 4),
+                      decoration: BoxDecoration(
+                        color: Color(color),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Color(colors.hairline)),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                palette.name,
+                style: context.type.bodyMedium?.copyWith(
+                  color: Color(colors.text),
+                  fontWeight: selected ? FontWeight.w600 : null,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

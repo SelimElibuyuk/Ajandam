@@ -27,6 +27,8 @@ class ItemTile extends ConsumerWidget {
     final overdue = item.isOverdue(now);
     final timeColor = overdue ? c.danger : (finished ? c.muted : c.accentText);
     final titleColor = overdue ? c.danger : (finished ? c.muted : c.text);
+    // Süren etkinlik takvimdeki bir zaman bloğu gibi renkli dolu kart olur.
+    final eventFill = item.isTask || finished ? null : c.tone().background;
 
     final row = Row(
       children: [
@@ -88,22 +90,31 @@ class ItemTile extends ConsumerWidget {
     );
 
     if (!card) {
-      return InkWell(
-        borderRadius: BorderRadius.circular(4),
+      final link = InkWell(
+        borderRadius: BorderRadius.circular(6),
         onTap: () => context.push('/item/${item.id}'),
         child: row,
+      );
+      if (eventFill == null) return link;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Material(
+          color: eventFill,
+          borderRadius: BorderRadius.circular(6),
+          child: link,
+        ),
       );
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: c.low,
+        color: eventFill ?? c.low,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
-          side: BorderSide(color: c.hairline),
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(color: eventFill == null ? c.hairline : c.accent),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
           onTap: () => context.push('/item/${item.id}'),
           child: row,
         ),
@@ -185,8 +196,8 @@ class _EventMark extends StatelessWidget {
         child: finished
             ? _Box(filled: true, color: c.muted)
             : Container(
-                width: 3,
-                height: 18,
+                width: 4,
+                height: 24,
                 decoration: BoxDecoration(
                   color: c.accent,
                   borderRadius: BorderRadius.circular(2),

@@ -102,8 +102,188 @@ const nocturne = ColorPalette(
   ),
 );
 
+/// Doğal, sakin yeşil.
+const orman = ColorPalette(
+  id: 'orman',
+  name: 'Orman',
+  dark: PaletteColors(
+    surface: 0xFF111613,
+    low: 0xFF171E1B,
+    container: 0xFF1B2420,
+    high: 0xFF27302C,
+    hairline: 0xFF2C3531,
+    muted: 0xFF8A968F,
+    text: 0xFFE1E6E2,
+    textSoft: 0xFFC7CEC9,
+    accent: 0xFF4E8A6B,
+    accentSoft: 0xFF203329,
+    accentText: 0xFF9FD4B5,
+    onAccent: 0xFFF3FAF6,
+    danger: 0xFFFFB4AB,
+  ),
+  light: PaletteColors(
+    surface: 0xFFF3F5F0,
+    low: 0xFFFBFCFA,
+    container: 0xFFE6EBE3,
+    high: 0xFFDEE3DB,
+    hairline: 0xFFD3D9D2,
+    muted: 0xFF6A766F,
+    text: 0xFF18201B,
+    textSoft: 0xFF353E38,
+    accent: 0xFF3F7A5C,
+    accentSoft: 0xFFDCE7E2,
+    accentText: 0xFF2F6649,
+    onAccent: 0xFFFFFFFF,
+    danger: 0xFFB3261E,
+  ),
+);
+
+/// Sıcak, kâğıt ve mum ışığı.
+const kehribar = ColorPalette(
+  id: 'kehribar',
+  name: 'Kehribar',
+  dark: PaletteColors(
+    surface: 0xFF16130F,
+    low: 0xFF1E1A14,
+    container: 0xFF241F18,
+    high: 0xFF302B24,
+    hairline: 0xFF363028,
+    muted: 0xFF9A8F80,
+    text: 0xFFECE4D8,
+    textSoft: 0xFFD3CABE,
+    accent: 0xFFC08A3E,
+    accentSoft: 0xFF40311B,
+    accentText: 0xFFF0C48A,
+    onAccent: 0xFFFDF8F1,
+    danger: 0xFFFFB4AB,
+  ),
+  light: PaletteColors(
+    surface: 0xFFFAF6EE,
+    low: 0xFFFEFCFA,
+    container: 0xFFF0E8DA,
+    high: 0xFFE8E0D2,
+    hairline: 0xFFDFD6C8,
+    muted: 0xFF7D7263,
+    text: 0xFF221C14,
+    textSoft: 0xFF423A30,
+    accent: 0xFFA8732B,
+    accentSoft: 0xFFEFE6D9,
+    accentText: 0xFF8A5C1E,
+    onAccent: 0xFFFFFFFF,
+    danger: 0xFFB3261E,
+  ),
+);
+
+/// Ajanda defteri kırmızısı.
+const bordo = ColorPalette(
+  id: 'bordo',
+  name: 'Bordo',
+  dark: PaletteColors(
+    surface: 0xFF161113,
+    low: 0xFF1F161A,
+    container: 0xFF251A1E,
+    high: 0xFF31262A,
+    hairline: 0xFF372B2F,
+    muted: 0xFF9C8A90,
+    text: 0xFFEDE1E4,
+    textSoft: 0xFFD5C7CB,
+    accent: 0xFF9E4A5E,
+    accentSoft: 0xFF381F26,
+    accentText: 0xFFF0AEBE,
+    onAccent: 0xFFFDF5F7,
+    danger: 0xFFFFB4AB,
+  ),
+  light: PaletteColors(
+    surface: 0xFFFAF4F5,
+    low: 0xFFFEFCFC,
+    container: 0xFFF1E5E8,
+    high: 0xFFE9DDE0,
+    hairline: 0xFFE0D3D6,
+    muted: 0xFF7D6A70,
+    text: 0xFF241519,
+    textSoft: 0xFF433337,
+    accent: 0xFF8E3B4F,
+    accentSoft: 0xFFEBDCDF,
+    accentText: 0xFF7A2E41,
+    onAccent: 0xFFFFFFFF,
+    danger: 0xFFB3261E,
+  ),
+);
+
+/// Yumuşak, odaklı mor.
+const lavanta = ColorPalette(
+  id: 'lavanta',
+  name: 'Lavanta',
+  dark: PaletteColors(
+    surface: 0xFF131218,
+    low: 0xFF1B1923,
+    container: 0xFF201E2A,
+    high: 0xFF2C2A36,
+    hairline: 0xFF312F3C,
+    muted: 0xFF918DA0,
+    text: 0xFFE6E3EF,
+    textSoft: 0xFFCCC9D7,
+    accent: 0xFF7A6BB8,
+    accentSoft: 0xFF2D2840,
+    accentText: 0xFFC6BCF5,
+    onAccent: 0xFFF8F7FE,
+    danger: 0xFFFFB4AB,
+  ),
+  light: PaletteColors(
+    surface: 0xFFF6F5FA,
+    low: 0xFFFCFCFE,
+    container: 0xFFECE9F4,
+    high: 0xFFE4E1EC,
+    hairline: 0xFFDAD6E3,
+    muted: 0xFF716C82,
+    text: 0xFF1C1A26,
+    textSoft: 0xFF3A3746,
+    accent: 0xFF6656A8,
+    accentSoft: 0xFFE3E1EF,
+    accentText: 0xFF54459A,
+    onAccent: 0xFFFFFFFF,
+    danger: 0xFFB3261E,
+  ),
+);
+
+/// Serin camgöbeği.
+const deniz = ColorPalette(
+  id: 'deniz',
+  name: 'Deniz',
+  dark: PaletteColors(
+    surface: 0xFF0F1516,
+    low: 0xFF141D1F,
+    container: 0xFF182325,
+    high: 0xFF242F31,
+    hairline: 0xFF283436,
+    muted: 0xFF869597,
+    text: 0xFFDFE8E8,
+    textSoft: 0xFFC4CFD0,
+    accent: 0xFF3E8A8F,
+    accentSoft: 0xFF1B3234,
+    accentText: 0xFF93D3D6,
+    onAccent: 0xFFF2FAFA,
+    danger: 0xFFFFB4AB,
+  ),
+  light: PaletteColors(
+    surface: 0xFFF2F6F6,
+    low: 0xFFFBFCFC,
+    container: 0xFFE3ECEC,
+    high: 0xFFDBE4E4,
+    hairline: 0xFFD0DBDB,
+    muted: 0xFF66787A,
+    text: 0xFF142022,
+    textSoft: 0xFF313F41,
+    accent: 0xFF2F7A7F,
+    accentSoft: 0xFFDAE7E8,
+    accentText: 0xFF23656A,
+    onAccent: 0xFFFFFFFF,
+    danger: 0xFFB3261E,
+  ),
+);
+
 /// Yeni renk temaları buraya eklenir; ayarlar ve widget'lar listeyi okur.
-const palettes = [nocturne];
+const palettes = [nocturne, orman, kehribar, bordo, lavanta, deniz];
 
 ColorPalette paletteById(String id) =>
     palettes.firstWhere((p) => p.id == id, orElse: () => nocturne);

@@ -321,6 +321,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
               runSpacing: 6,
               children: [
                 _chip(
+                  hue: ChipHue.accent,
                   label: kind == ItemKind.event ? 'Etkinlik' : 'Görev',
                   icon: kind == ItemKind.event
                       ? Icons.event_outlined
@@ -332,6 +333,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
                   ),
                 ),
                 _chip(
+                  hue: ChipHue.accent,
                   label: endDate != null && kind == ItemKind.event
                       ? '${dayLabel(_day, today)} – ${dayLabel(endDate, today)}'
                       : dayLabel(_day, today),
@@ -344,6 +346,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
                       : null,
                 ),
                 _chip(
+                  hue: time == null ? null : ChipHue.time,
                   label: time == null ? 'Saat ekle' : hhmmOf(time),
                   onPressed: () async {
                     await _pickTime();
@@ -354,6 +357,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
                       : null,
                 ),
                 _chip(
+                  hue: rule == null ? null : ChipHue.repeat,
                   label: rule == null
                       ? 'Tekrar yok'
                       : recurrenceLabel(rule, _day),
@@ -365,11 +369,13 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
                     kind == ItemKind.event &&
                     _parsed.durationMin != null)
                   _chip(
+                    hue: ChipHue.duration,
                     label: offsetLabel(_parsed.durationMin!),
                     onDeleted: () => _disable(ParseField.duration),
                   ),
                 if (time != null)
                   _chip(
+                    hue: ChipHue.reminder,
                     label: reminderLabel(_reminder(settings)),
                     onPressed: () => _pickReminder(_reminder(settings)),
                   ),
@@ -427,19 +433,32 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
     );
   }
 
+  /// [hue] verilmeyen çip henüz boş bir alandır ve sade kalır.
   Widget _chip({
     required String label,
+    ChipHue? hue,
     IconData? icon,
     VoidCallback? onPressed,
     VoidCallback? onDeleted,
-  }) => InputChip(
-    avatar: icon == null ? null : Icon(icon, size: 16),
-    label: Text(label),
-    onPressed: onPressed,
-    onDeleted: onDeleted,
-    visualDensity: VisualDensity.compact,
-    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-  );
+  }) {
+    final tone = hue == null ? null : context.colors.tone(hue);
+    return InputChip(
+      avatar: icon == null
+          ? null
+          : Icon(icon, size: 16, color: tone?.foreground),
+      label: Text(label),
+      labelStyle: tone == null
+          ? null
+          : context.type.labelMedium?.copyWith(color: tone.foreground),
+      backgroundColor: tone?.background,
+      side: tone == null ? null : BorderSide.none,
+      deleteIconColor: tone?.foreground,
+      onPressed: onPressed,
+      onDeleted: onDeleted,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
 }
 
 /// Anlaşılan tarih ve saat ifadelerini metnin içinde renklendirir.
