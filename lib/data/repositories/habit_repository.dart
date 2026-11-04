@@ -24,6 +24,12 @@ class HabitRepository implements HabitStore {
     _db.habitLogs,
   )..where((t) => t.habitId.equals(habitId))).watch().map(_countsOf);
 
+  /// Alışkanlığın dondurma kararları; karar anında yansır.
+  Stream<Map<DateTime, bool>> watchFreezeDecisions(String habitId) =>
+      (_db.select(
+        _db.habitFreezes,
+      )..where((t) => t.habitId.equals(habitId))).watch().map(_decisionsOf);
+
   @override
   Future<List<Habit>> habits() async =>
       (await _ordered().get()).map(_toDomain).toList();
@@ -47,6 +53,9 @@ class HabitRepository implements HabitStore {
   @override
   Future<void> deleteHabit(String id) => _db.transaction(() async {
     await (_db.delete(_db.habitLogs)..where((t) => t.habitId.equals(id))).go();
+    await (_db.delete(
+      _db.habitFreezes,
+    )..where((t) => t.habitId.equals(id))).go();
     await (_db.delete(_db.habits)..where((t) => t.id.equals(id))).go();
   });
 
@@ -98,8 +107,52 @@ class HabitRepository implements HabitStore {
         );
   }
 
+  @override
+  Future<Map<DateTime, bool>> freezeDecisions(String habitId) async =>
+      _decisionsOf(
+        await (_db.select(
+          _db.habitFreezes,
+        )..where((t) => t.habitId.equals(habitId))).get(),
+      );
+
+  @override
+  Future<Map<String, Set<DateTime>>> frozenDays(
+    DateTime from,
+    DateTime to,
+  ) async {
+    final rows =
+        await (_db.select(_db.habitFreezes)..where(
+              (t) =>
+                  t.frozen.equals(true) &
+                  t.date.isBetweenValues(dayKey(from), dayKey(to)),
+            ))
+            .get();
+    final result = <String, Set<DateTime>>{};
+    for (final row in rows) {
+      (result[row.habitId] ??= {}).add(parseDayKey(row.date));
+    }
+    return result;
+  }
+
+  @override
+  Future<void> decideFreeze(String habitId, List<DateTime> days, bool frozen) =>
+      _db.batch((batch) {
+        batch.insertAllOnConflictUpdate(_db.habitFreezes, [
+          for (final day in days)
+            HabitFreezesCompanion.insert(
+              habitId: habitId,
+              date: dayKey(day),
+              frozen: frozen,
+            ),
+        ]);
+      });
+
   Map<DateTime, int> _countsOf(List<HabitLogRow> rows) => {
     for (final row in rows) parseDayKey(row.date): row.count,
+  };
+
+  Map<DateTime, bool> _decisionsOf(List<HabitFreezeRow> rows) => {
+    for (final row in rows) parseDayKey(row.date): row.frozen,
   };
 
   HabitsCompanion _toRow(Habit h) => HabitsCompanion.insert(

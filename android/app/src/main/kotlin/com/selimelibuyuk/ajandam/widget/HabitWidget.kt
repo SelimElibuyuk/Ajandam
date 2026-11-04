@@ -60,6 +60,9 @@ private const val CHIP_WIDTH = 42
 private const val MAX_CHIPS = 14
 private const val HEADER_HEIGHT = 26
 
+/** Uygulamadaki dondurulmuş gün rengiyle aynı. */
+private val ICE = Color(0xFF7FB8E0)
+
 private val turkish = Locale.forLanguageTag("tr")
 private val habitIdKey = ActionParameters.Key<String>("habitId")
 private val dayKey = ActionParameters.Key<String>("day")
@@ -207,10 +210,13 @@ private fun DayChip(
 ) {
     val count = habit.count(day)
     val done = count >= habit.goal
+    val frozen = habit.frozen(day)
     val planned = habit.planned(day)
     val background =
         when {
             done -> accent
+            // Dondurulan gün zinciri buz rengiyle sürdürür.
+            frozen -> ICE.copy(alpha = 0.45f)
             count > 0 -> accent.copy(alpha = 0.35f)
             isToday -> colors.accentSoft
             planned -> colors.container
@@ -237,7 +243,7 @@ private fun DayChip(
     ) {
         if (showLabel) {
             Text(
-                day.dayOfWeek.getDisplayName(DayStyle.SHORT, turkish).take(3),
+                if (frozen) "❄" else day.dayOfWeek.getDisplayName(DayStyle.SHORT, turkish).take(3),
                 maxLines = 1,
                 style =
                     TextStyle(

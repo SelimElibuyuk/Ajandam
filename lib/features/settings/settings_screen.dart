@@ -81,6 +81,14 @@ class SettingsScreen extends ConsumerWidget {
             selected: s.palette,
             onChanged: (id) => _update(ref, s.copyWith(palette: id)),
           ),
+          SwitchListTile(
+            title: const Text('Yüksek kontrast'),
+            subtitle: const Text(
+              "Yazılar ve kenarlıklar daha belirgin; widget'lara da uygulanır",
+            ),
+            value: s.highContrast,
+            onChanged: (v) => _update(ref, s.copyWith(highContrast: v)),
+          ),
           _Choice<String>(
             title: 'Açık / koyu',
             value: s.theme,

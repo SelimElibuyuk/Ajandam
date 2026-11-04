@@ -122,8 +122,16 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
     return MaterialApp.router(
       title: 'Ajandam',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.light, palette: palette),
-      darkTheme: buildTheme(Brightness.dark, palette: palette),
+      theme: buildTheme(
+        Brightness.light,
+        palette: palette,
+        highContrast: settings.highContrast,
+      ),
+      darkTheme: buildTheme(
+        Brightness.dark,
+        palette: palette,
+        highContrast: settings.highContrast,
+      ),
       themeMode: switch (settings.theme) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,

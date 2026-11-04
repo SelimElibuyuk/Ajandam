@@ -158,7 +158,11 @@ void main() {
       final colors = s['colors'] as Map<String, dynamic>;
       expect((colors['dark'] as Map)['surface'], '#FF121316');
       expect((colors['light'] as Map)['accent'], '#FF4A6FA5');
-      expect(s['widgetStyle'], {'opacity': 80, 'radius': 8});
+      expect(s['widgetStyle'], {
+        'opacity': 80,
+        'radius': 8,
+        'highContrast': false,
+      });
     });
 
     test(
@@ -172,9 +176,12 @@ void main() {
             palette: 'orman',
             widgetOpacity: 60,
             widgetRadius: 24,
+            highContrast: true,
           ),
         );
         final loaded = await repo.load();
+        expect(loaded.highContrast, isTrue);
+        expect((await SettingsRepository(db).load()).highContrast, isTrue);
         expect(loaded.palette, 'orman');
         expect(loaded.widgetOpacity, 60);
         expect(loaded.widgetRadius, 24);

@@ -4238,6 +4238,278 @@ class HabitLogsCompanion extends UpdateCompanion<HabitLogRow> {
   }
 }
 
+class $HabitFreezesTable extends HabitFreezes
+    with TableInfo<$HabitFreezesTable, HabitFreezeRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HabitFreezesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _habitIdMeta = const VerificationMeta(
+    'habitId',
+  );
+  @override
+  late final GeneratedColumn<String> habitId = GeneratedColumn<String>(
+    'habit_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES habits (id)',
+    ),
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _frozenMeta = const VerificationMeta('frozen');
+  @override
+  late final GeneratedColumn<bool> frozen = GeneratedColumn<bool>(
+    'frozen',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("frozen" IN (0, 1))',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [habitId, date, frozen];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'habit_freezes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HabitFreezeRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('habit_id')) {
+      context.handle(
+        _habitIdMeta,
+        habitId.isAcceptableOrUnknown(data['habit_id']!, _habitIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_habitIdMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('frozen')) {
+      context.handle(
+        _frozenMeta,
+        frozen.isAcceptableOrUnknown(data['frozen']!, _frozenMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_frozenMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {habitId, date};
+  @override
+  HabitFreezeRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HabitFreezeRow(
+      habitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}habit_id'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      frozen: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}frozen'],
+      )!,
+    );
+  }
+
+  @override
+  $HabitFreezesTable createAlias(String alias) {
+    return $HabitFreezesTable(attachedDatabase, alias);
+  }
+}
+
+class HabitFreezeRow extends DataClass implements Insertable<HabitFreezeRow> {
+  final String habitId;
+
+  /// YYYY-MM-DD
+  final String date;
+
+  /// true dondurulmuş, false seri bozulsun denmiş.
+  final bool frozen;
+  const HabitFreezeRow({
+    required this.habitId,
+    required this.date,
+    required this.frozen,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['habit_id'] = Variable<String>(habitId);
+    map['date'] = Variable<String>(date);
+    map['frozen'] = Variable<bool>(frozen);
+    return map;
+  }
+
+  HabitFreezesCompanion toCompanion(bool nullToAbsent) {
+    return HabitFreezesCompanion(
+      habitId: Value(habitId),
+      date: Value(date),
+      frozen: Value(frozen),
+    );
+  }
+
+  factory HabitFreezeRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HabitFreezeRow(
+      habitId: serializer.fromJson<String>(json['habitId']),
+      date: serializer.fromJson<String>(json['date']),
+      frozen: serializer.fromJson<bool>(json['frozen']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'habitId': serializer.toJson<String>(habitId),
+      'date': serializer.toJson<String>(date),
+      'frozen': serializer.toJson<bool>(frozen),
+    };
+  }
+
+  HabitFreezeRow copyWith({String? habitId, String? date, bool? frozen}) =>
+      HabitFreezeRow(
+        habitId: habitId ?? this.habitId,
+        date: date ?? this.date,
+        frozen: frozen ?? this.frozen,
+      );
+  HabitFreezeRow copyWithCompanion(HabitFreezesCompanion data) {
+    return HabitFreezeRow(
+      habitId: data.habitId.present ? data.habitId.value : this.habitId,
+      date: data.date.present ? data.date.value : this.date,
+      frozen: data.frozen.present ? data.frozen.value : this.frozen,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitFreezeRow(')
+          ..write('habitId: $habitId, ')
+          ..write('date: $date, ')
+          ..write('frozen: $frozen')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(habitId, date, frozen);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HabitFreezeRow &&
+          other.habitId == this.habitId &&
+          other.date == this.date &&
+          other.frozen == this.frozen);
+}
+
+class HabitFreezesCompanion extends UpdateCompanion<HabitFreezeRow> {
+  final Value<String> habitId;
+  final Value<String> date;
+  final Value<bool> frozen;
+  final Value<int> rowid;
+  const HabitFreezesCompanion({
+    this.habitId = const Value.absent(),
+    this.date = const Value.absent(),
+    this.frozen = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HabitFreezesCompanion.insert({
+    required String habitId,
+    required String date,
+    required bool frozen,
+    this.rowid = const Value.absent(),
+  }) : habitId = Value(habitId),
+       date = Value(date),
+       frozen = Value(frozen);
+  static Insertable<HabitFreezeRow> custom({
+    Expression<String>? habitId,
+    Expression<String>? date,
+    Expression<bool>? frozen,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (habitId != null) 'habit_id': habitId,
+      if (date != null) 'date': date,
+      if (frozen != null) 'frozen': frozen,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HabitFreezesCompanion copyWith({
+    Value<String>? habitId,
+    Value<String>? date,
+    Value<bool>? frozen,
+    Value<int>? rowid,
+  }) {
+    return HabitFreezesCompanion(
+      habitId: habitId ?? this.habitId,
+      date: date ?? this.date,
+      frozen: frozen ?? this.frozen,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (habitId.present) {
+      map['habit_id'] = Variable<String>(habitId.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (frozen.present) {
+      map['frozen'] = Variable<bool>(frozen.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HabitFreezesCompanion(')
+          ..write('habitId: $habitId, ')
+          ..write('date: $date, ')
+          ..write('frozen: $frozen, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4249,6 +4521,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SettingsTable settings = $SettingsTable(this);
   late final $HabitsTable habits = $HabitsTable(this);
   late final $HabitLogsTable habitLogs = $HabitLogsTable(this);
+  late final $HabitFreezesTable habitFreezes = $HabitFreezesTable(this);
   late final Index itemsDate = Index(
     'items_date',
     'CREATE INDEX items_date ON items (date)',
@@ -4282,6 +4555,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     settings,
     habits,
     habitLogs,
+    habitFreezes,
     itemsDate,
     itemsStartAt,
     itemsGoogleEventId,
@@ -6599,6 +6873,24 @@ final class $$HabitsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$HabitFreezesTable, List<HabitFreezeRow>>
+  _habitFreezesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.habitFreezes,
+    aliasName: 'habits__id__habit_freezes__habit_id',
+  );
+
+  $$HabitFreezesTableProcessedTableManager get habitFreezesRefs {
+    final manager = $$HabitFreezesTableTableManager(
+      $_db,
+      $_db.habitFreezes,
+    ).filter((f) => f.habitId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_habitFreezesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$HabitsTableFilterComposer
@@ -6671,6 +6963,31 @@ class $$HabitsTableFilterComposer
           }) => $$HabitLogsTableFilterComposer(
             $db: $db,
             $table: $db.habitLogs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> habitFreezesRefs(
+    Expression<bool> Function($$HabitFreezesTableFilterComposer f) f,
+  ) {
+    final $$HabitFreezesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.habitFreezes,
+      getReferencedColumn: (t) => t.habitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitFreezesTableFilterComposer(
+            $db: $db,
+            $table: $db.habitFreezes,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6796,6 +7113,31 @@ class $$HabitsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> habitFreezesRefs<T extends Object>(
+    Expression<T> Function($$HabitFreezesTableAnnotationComposer a) f,
+  ) {
+    final $$HabitFreezesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.habitFreezes,
+      getReferencedColumn: (t) => t.habitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitFreezesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.habitFreezes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$HabitsTableTableManager
@@ -6811,7 +7153,7 @@ class $$HabitsTableTableManager
           $$HabitsTableUpdateCompanionBuilder,
           (HabitRow, $$HabitsTableReferences),
           HabitRow,
-          PrefetchHooks Function({bool habitLogsRefs})
+          PrefetchHooks Function({bool habitLogsRefs, bool habitFreezesRefs})
         > {
   $$HabitsTableTableManager(_$AppDatabase db, $HabitsTable table)
     : super(
@@ -6880,33 +7222,61 @@ class $$HabitsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({habitLogsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (habitLogsRefs) db.habitLogs],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (habitLogsRefs)
-                    await $_getPrefetchedDataByColumns<
-                      HabitRow,
-                      $HabitsTable,
-                      HabitLogRow,
-                      $HabitLogsTable
-                    >(
-                      currentTable: table,
-                      referencedTable: $$HabitsTableReferences
-                          ._habitLogsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$HabitsTableReferences(db, table, p0).habitLogsRefs,
-                      currentColumn: 'id',
-                      referencedColumn: 'habit_id',
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({habitLogsRefs = false, habitFreezesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (habitLogsRefs) db.habitLogs,
+                    if (habitFreezesRefs) db.habitFreezes,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (habitLogsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          HabitRow,
+                          $HabitsTable,
+                          HabitLogRow,
+                          $HabitLogsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$HabitsTableReferences
+                              ._habitLogsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$HabitsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).habitLogsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'habit_id',
+                          typedResults: items,
+                        ),
+                      if (habitFreezesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          HabitRow,
+                          $HabitsTable,
+                          HabitFreezeRow,
+                          $HabitFreezesTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$HabitsTableReferences
+                              ._habitFreezesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$HabitsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).habitFreezesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'habit_id',
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -6923,7 +7293,7 @@ typedef $$HabitsTableProcessedTableManager =
       $$HabitsTableUpdateCompanionBuilder,
       (HabitRow, $$HabitsTableReferences),
       HabitRow,
-      PrefetchHooks Function({bool habitLogsRefs})
+      PrefetchHooks Function({bool habitLogsRefs, bool habitFreezesRefs})
     >;
 typedef $$HabitLogsTableCreateCompanionBuilder = HabitLogsCompanion Function({
   required String habitId,
@@ -7219,6 +7589,283 @@ typedef $$HabitLogsTableProcessedTableManager =
       HabitLogRow,
       PrefetchHooks Function({bool habitId})
     >;
+typedef $$HabitFreezesTableCreateCompanionBuilder =
+    HabitFreezesCompanion Function({
+      required String habitId,
+      required String date,
+      required bool frozen,
+      Value<int> rowid,
+    });
+typedef $$HabitFreezesTableUpdateCompanionBuilder =
+    HabitFreezesCompanion Function({
+      Value<String> habitId,
+      Value<String> date,
+      Value<bool> frozen,
+      Value<int> rowid,
+    });
+
+final class $$HabitFreezesTableReferences
+    extends BaseReferences<_$AppDatabase, $HabitFreezesTable, HabitFreezeRow> {
+  $$HabitFreezesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $HabitsTable _habitIdTable(_$AppDatabase db) =>
+      db.habits.createAlias('habit_freezes__habit_id__habits__id');
+
+  $$HabitsTableProcessedTableManager get habitId {
+    final $_column = $_itemColumn<String>('habit_id')!;
+
+    final manager = $$HabitsTableTableManager(
+      $_db,
+      $_db.habits,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_habitIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$HabitFreezesTableFilterComposer
+    extends Composer<_$AppDatabase, $HabitFreezesTable> {
+  $$HabitFreezesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get frozen => $composableBuilder(
+    column: $table.frozen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$HabitsTableFilterComposer get habitId {
+    final $$HabitsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableFilterComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitFreezesTableOrderingComposer
+    extends Composer<_$AppDatabase, $HabitFreezesTable> {
+  $$HabitFreezesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get frozen => $composableBuilder(
+    column: $table.frozen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$HabitsTableOrderingComposer get habitId {
+    final $$HabitsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableOrderingComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitFreezesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HabitFreezesTable> {
+  $$HabitFreezesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<bool> get frozen =>
+      $composableBuilder(column: $table.frozen, builder: (column) => column);
+
+  $$HabitsTableAnnotationComposer get habitId {
+    final $$HabitsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.habitId,
+      referencedTable: $db.habits,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$HabitsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.habits,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$HabitFreezesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HabitFreezesTable,
+          HabitFreezeRow,
+          $$HabitFreezesTableFilterComposer,
+          $$HabitFreezesTableOrderingComposer,
+          $$HabitFreezesTableAnnotationComposer,
+          $$HabitFreezesTableCreateCompanionBuilder,
+          $$HabitFreezesTableUpdateCompanionBuilder,
+          (HabitFreezeRow, $$HabitFreezesTableReferences),
+          HabitFreezeRow,
+          PrefetchHooks Function({bool habitId})
+        > {
+  $$HabitFreezesTableTableManager(_$AppDatabase db, $HabitFreezesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HabitFreezesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HabitFreezesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HabitFreezesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> habitId = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<bool> frozen = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HabitFreezesCompanion(
+                habitId: habitId,
+                date: date,
+                frozen: frozen,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String habitId,
+                required String date,
+                required bool frozen,
+                Value<int> rowid = const Value.absent(),
+              }) => HabitFreezesCompanion.insert(
+                habitId: habitId,
+                date: date,
+                frozen: frozen,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$HabitFreezesTable, HabitFreezeRow>(table),
+                  $$HabitFreezesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({habitId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (habitId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.habitId,
+                        referencedTable: $$HabitFreezesTableReferences
+                            ._habitIdTable(db),
+                        referencedColumn: $$HabitFreezesTableReferences
+                            ._habitIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$HabitFreezesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HabitFreezesTable,
+      HabitFreezeRow,
+      $$HabitFreezesTableFilterComposer,
+      $$HabitFreezesTableOrderingComposer,
+      $$HabitFreezesTableAnnotationComposer,
+      $$HabitFreezesTableCreateCompanionBuilder,
+      $$HabitFreezesTableUpdateCompanionBuilder,
+      (HabitFreezeRow, $$HabitFreezesTableReferences),
+      HabitFreezeRow,
+      PrefetchHooks Function({bool habitId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7239,4 +7886,6 @@ class $AppDatabaseManager {
       $$HabitsTableTableManager(_db, _db.habits);
   $$HabitLogsTableTableManager get habitLogs =>
       $$HabitLogsTableTableManager(_db, _db.habitLogs);
+  $$HabitFreezesTableTableManager get habitFreezes =>
+      $$HabitFreezesTableTableManager(_db, _db.habitFreezes);
 }

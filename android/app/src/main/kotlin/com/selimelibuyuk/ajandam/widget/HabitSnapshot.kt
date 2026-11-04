@@ -21,20 +21,27 @@ class HabitEntry(
     private val olderStreak: Int,
     private val windowStart: LocalDate,
     private val counts: Map<String, Int>,
+    private val frozenDays: Set<String> = emptySet(),
 ) {
     fun count(day: LocalDate): Int = counts[day.toString()] ?: 0
 
     fun done(day: LocalDate): Boolean = count(day) >= goal
 
+    /** Dondurulan gün seriyi bozmaz ama sayılmaz; sonradan yapılırsa yapılmış sayılır. */
+    fun frozen(day: LocalDate): Boolean = day.toString() in frozenDays && !done(day)
+
     fun planned(day: LocalDate): Boolean = weekdays.isEmpty() || day.dayOfWeek.value in weekdays
 
-    /** Uygulamadaki HabitHistory.streak ile aynı: bugün yapılmadıysa seri dünden sayılır. */
+    /**
+     * Uygulamadaki HabitHistory.streak ile aynı: bugün yapılmadıysa seri dünden sayılır,
+     * dondurulan günler planlanmamış gün gibi atlanır.
+     */
     fun streak(today: LocalDate): Int {
         var day = if (done(today)) today else today.minusDays(1)
         var count = 0
         while (true) {
             if (day < windowStart) return count + olderStreak
-            if (planned(day)) {
+            if (planned(day) && !frozen(day)) {
                 if (!done(day)) return count
                 count++
             }
@@ -67,6 +74,8 @@ class HabitSnapshot(val appearance: WidgetAppearance, val habits: List<HabitEntr
                     val habit = array.getJSONObject(i)
                     val days = habit.getJSONArray("weekdays")
                     val counts = habit.getJSONObject("counts")
+                    // Eski anlık görüntülerde yok.
+                    val frozen = habit.optJSONArray("frozen") ?: JSONArray()
                     HabitEntry(
                         id = habit.getString("id"),
                         title = habit.getString("title"),
@@ -76,6 +85,7 @@ class HabitSnapshot(val appearance: WidgetAppearance, val habits: List<HabitEntr
                         olderStreak = habit.optInt("olderStreak"),
                         windowStart = windowStart,
                         counts = counts.keys().asSequence().associateWith { counts.getInt(it) },
+                        frozenDays = List(frozen.length()) { frozen.getString(it) }.toSet(),
                     )
                 }
             return HabitSnapshot(WidgetAppearance.parse(json), habits)

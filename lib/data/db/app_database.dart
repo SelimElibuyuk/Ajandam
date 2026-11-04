@@ -15,6 +15,7 @@ part 'app_database.g.dart';
     Settings,
     Habits,
     HabitLogs,
+    HabitFreezes,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -28,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +43,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await m.createTable(habits);
         await m.createTable(habitLogs);
+      }
+      if (from < 4) {
+        await m.createTable(habitFreezes);
       }
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),

@@ -13,6 +13,7 @@ class AppSettings {
     this.palette = 'nocturne',
     this.widgetOpacity = 100,
     this.widgetRadius = 16,
+    this.highContrast = false,
   });
 
   final int weekStart;
@@ -37,6 +38,9 @@ class AppSettings {
   /// Widget köşe yuvarlaklığı, dp.
   final int widgetRadius;
 
+  /// Yüksek kontrast: uygulamada ve widget'larda daha belirgin yazı ve kenarlık.
+  final bool highContrast;
+
   LifecycleRule get lifecycle => LifecycleRule(
     enabled: lifecycleEnabled,
     ttlDays: lifecycleTtlDays,
@@ -55,6 +59,7 @@ class AppSettings {
     String? palette,
     int? widgetOpacity,
     int? widgetRadius,
+    bool? highContrast,
   }) => AppSettings(
     weekStart: weekStart ?? this.weekStart,
     defaultReminderMin: defaultReminderMin ?? this.defaultReminderMin,
@@ -67,5 +72,6 @@ class AppSettings {
     palette: palette ?? this.palette,
     widgetOpacity: widgetOpacity ?? this.widgetOpacity,
     widgetRadius: widgetRadius ?? this.widgetRadius,
+    highContrast: highContrast ?? this.highContrast,
   );
 }

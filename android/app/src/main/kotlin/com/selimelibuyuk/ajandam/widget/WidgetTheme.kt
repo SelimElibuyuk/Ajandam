@@ -60,6 +60,8 @@ class WidgetAppearance(
     val opacity: Float,
     /** Köşe yuvarlaklığı, dp */
     val radius: Int,
+    /** Yüksek kontrast; renkler uygulamada dönüştürülmüş gelir. */
+    val highContrast: Boolean = false,
 ) {
     fun isDark(context: Context): Boolean =
         when (mode) {
@@ -72,7 +74,9 @@ class WidgetAppearance(
 
     fun palette(context: Context): WidgetPalette = if (isDark(context)) dark else light
 
-    fun background(context: Context): Color = palette(context).surface.copy(alpha = opacity)
+    /** Yüksek kontrastta saydamlık yazıyı okunmaz kılar, zemin opak kalır. */
+    fun background(context: Context): Color =
+        palette(context).surface.copy(alpha = if (highContrast) 1f else opacity)
 
     companion object {
         val DEFAULT = WidgetAppearance("dark", nocturneDark, nocturneLight, 1f, 16)
@@ -86,6 +90,8 @@ class WidgetAppearance(
                 light = palette(colors?.optJSONObject("light"), nocturneLight),
                 opacity = (style?.optInt("opacity", 100) ?: 100).coerceIn(0, 100) / 100f,
                 radius = (style?.optInt("radius", 16) ?: 16).coerceIn(0, 32),
+                // Eski anlık görüntülerde alan yoktur: normal kontrast.
+                highContrast = style?.optBoolean("highContrast", false) ?: false,
             )
         }
 

@@ -79,7 +79,7 @@ void main() {
               .customSelect(
                 "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL "
                 "AND name NOT IN ('items_series_id', 'sqlite_sequence', "
-                "'habits', 'habit_logs')",
+                "'habits', 'habit_logs', 'habit_freezes')",
               )
               .get())
         row
@@ -128,7 +128,8 @@ void main() {
           in await fresh
               .customSelect(
                 "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL "
-                "AND name NOT IN ('sqlite_sequence', 'habits', 'habit_logs')",
+                "AND name NOT IN ('sqlite_sequence', 'habits', 'habit_logs', "
+                "'habit_freezes')",
               )
               .get())
         row.read<String>('sql'),
@@ -173,6 +174,56 @@ void main() {
 
     expect((await old.select(old.items).get()).single.title, 'Market');
     expect((await old.select(old.habitLogs).get()).single.count, 1);
+    await old.close();
+  });
+
+  test('sürüm 3 veritabanına dondurma tablosu eklenir, geçmiş kalır', () async {
+    final fresh = AppDatabase(NativeDatabase.memory());
+    final ddl = [
+      for (final row
+          in await fresh
+              .customSelect(
+                "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL "
+                "AND name NOT IN ('sqlite_sequence', 'habit_freezes')",
+              )
+              .get())
+        row.read<String>('sql'),
+    ];
+    await fresh.close();
+    expect(ddl.any((sql) => sql.contains('habit_freezes')), isFalse);
+
+    final old = AppDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          for (final sql in ddl) {
+            raw.execute(sql);
+          }
+          raw.execute(
+            "INSERT INTO habits (id, title, start_date, sort_order, color, "
+            "created_at, updated_at) "
+            "VALUES ('h', 'Su', '2026-11-01', 0, 0, 1, 1)",
+          );
+          raw.execute(
+            "INSERT INTO habit_logs (habit_id, date, count, updated_at) "
+            "VALUES ('h', '2026-11-18', 1, 1)",
+          );
+          raw.execute('PRAGMA user_version = 3');
+        },
+      ),
+    );
+    await old
+        .into(old.habitFreezes)
+        .insert(
+          HabitFreezesCompanion.insert(
+            habitId: 'h',
+            date: '2026-11-19',
+            frozen: true,
+          ),
+        );
+
+    expect((await old.select(old.habits).get()).single.title, 'Su');
+    expect((await old.select(old.habitLogs).get()).single.date, '2026-11-18');
+    expect((await old.select(old.habitFreezes).get()).single.frozen, isTrue);
     await old.close();
   });
 }

@@ -150,6 +150,21 @@ class HabitLogs extends Table {
   Set<Column> get primaryKey => {habitId, date};
 }
 
+/// Kaçırılan gün için verilen dondurma kararı; bir kez sorulur.
+@DataClassName('HabitFreezeRow')
+class HabitFreezes extends Table {
+  TextColumn get habitId => text().references(Habits, #id)();
+
+  /// YYYY-MM-DD
+  TextColumn get date => text()();
+
+  /// true dondurulmuş, false seri bozulsun denmiş.
+  BoolColumn get frozen => boolean()();
+
+  @override
+  Set<Column> get primaryKey => {habitId, date};
+}
+
 class Settings extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();

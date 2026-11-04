@@ -174,6 +174,15 @@ final habitHistoryProvider = StreamProvider.autoDispose
       (ref, id) => ref.watch(habitRepositoryProvider).watchHistory(id),
     );
 
+final habitFreezesProvider = StreamProvider.autoDispose
+    .family<Map<DateTime, bool>, String>(
+      (ref, id) => ref.watch(habitRepositoryProvider).watchFreezeDecisions(id),
+    );
+
+/// Bu oturumda dondurma sorusu sorulan alışkanlık boşlukları; dışarı dokunup
+/// kapatılsa da yeniden çizimde tekrar sorulmaz.
+final freezeAskedProvider = Provider<Set<String>>((ref) => <String>{});
+
 /// Ay ekranında gösterilen takvim: null ise ajanda, değilse alışkanlık.
 class SelectedHabitNotifier extends Notifier<String?> {
   @override

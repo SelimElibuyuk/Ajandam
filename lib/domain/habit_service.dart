@@ -23,6 +23,14 @@ abstract class HabitStore {
   /// Alışkanlığın tüm geçmişi.
   Future<Map<DateTime, int>> history(String habitId);
   Future<void> setCount(String habitId, DateTime day, int count, DateTime at);
+
+  /// Alışkanlığın dondurma kararları: true dondurulmuş, false reddedilmiş.
+  Future<Map<DateTime, bool>> freezeDecisions(String habitId);
+
+  /// [from]..[to] arasındaki dondurulmuş günler, alışkanlığa göre.
+  Future<Map<String, Set<DateTime>>> frozenDays(DateTime from, DateTime to);
+
+  Future<void> decideFreeze(String habitId, List<DateTime> days, bool frozen);
 }
 
 /// Alışkanlık widget'ında dokunulan gün; sayı mutlak tutulur, iki kez
@@ -139,6 +147,31 @@ class HabitService {
     await _changed();
   }
 
+  /// Teklif kayıttan yeniden hesaplanır; iki kez basılsa da hak bir kez
+  /// harcanır. Teklif yoksa false.
+  Future<bool> freeze(Habit habit) => _decide(habit, true);
+
+  /// Kaçırılan günler bir daha sorulmaz, seri bozulur.
+  Future<bool> declineFreeze(Habit habit) => _decide(habit, false);
+
+  /// Bugünkü dondurma teklifi, yoksa null.
+  Future<FreezeOffer?> freezeOffer(Habit habit) async =>
+      (await _historyOf(habit)).freezeOffer(dayOnly(_clock()));
+
+  Future<bool> _decide(Habit habit, bool frozen) async {
+    final offer = await freezeOffer(habit);
+    if (offer == null) return false;
+    await _store.decideFreeze(habit.id, offer.days, frozen);
+    await _changed();
+    return true;
+  }
+
+  Future<HabitHistory> _historyOf(Habit habit) async => HabitHistory(
+    habit,
+    await _store.history(habit.id),
+    await _store.freezeDecisions(habit.id),
+  );
+
   /// Widget'ta dokunulan günleri kalıcı kayda işler.
   Future<void> applyWidgetActions() async {
     final actions = await _widget.takeHabitActions();
@@ -164,11 +197,12 @@ class HabitService {
     final from = addDays(today, 1 - habitWindowDays);
     final habits = await _store.habits();
     final counts = await _store.counts(from, today);
+    final frozen = await _store.frozenDays(from, today);
     final settings = await _settings.load();
     final older = <String, int>{};
     for (final habit in habits) {
       // Pencerenin dışındaki seri tek sayı olarak taşınır.
-      final history = HabitHistory(habit, await _store.history(habit.id));
+      final history = await _historyOf(habit);
       older[habit.id] = history.streakEndingAt(addDays(from, -1));
     }
     await _widget.publishHabits(
@@ -177,6 +211,7 @@ class HabitService {
           habits,
           counts,
           older,
+          frozen: frozen,
           from: from,
           now: now,
           settings: settings,
@@ -203,6 +238,7 @@ Map<String, dynamic> buildHabitSnapshot(
   List<Habit> habits,
   Map<String, Map<DateTime, int>> counts,
   Map<String, int> olderStreaks, {
+  Map<String, Set<DateTime>> frozen = const {},
   required DateTime from,
   required DateTime now,
   required AppSettings settings,
@@ -226,6 +262,12 @@ Map<String, dynamic> buildHabitSnapshot(
           for (final e in (counts[habit.id] ?? const {}).entries)
             if (e.value > 0) dayKey(e.key): e.value,
         },
+        // Dondurulan günler seriyi bozmaz, sayılmaz.
+        'frozen': [
+          for (final day
+              in (frozen[habit.id] ?? const <DateTime>{}).toList()..sort())
+            dayKey(day),
+        ],
       },
   ],
 };

@@ -27,6 +27,7 @@ class SettingsRepository implements SettingsStore {
       _row('palette', s.palette),
       _row('widget_opacity', s.widgetOpacity),
       _row('widget_radius', s.widgetRadius),
+      _row('high_contrast', s.highContrast),
     ]);
   });
 
@@ -55,6 +56,7 @@ class SettingsRepository implements SettingsStore {
       palette: values['palette'] ?? d.palette,
       widgetOpacity: number('widget_opacity', d.widgetOpacity).clamp(0, 100),
       widgetRadius: number('widget_radius', d.widgetRadius).clamp(0, 32),
+      highContrast: flag('high_contrast', d.highContrast),
     );
   }
 }

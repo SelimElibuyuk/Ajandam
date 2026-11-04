@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../domain/palettes.dart';
 
 /// Kartlar ve üst bant temanın vurgu rengine hafifçe bürünür.
+/// Yüksek kontrastta süs tonları yarıya iner, yazının zemini sade kalır.
 const _cardTint = 0.04;
 const _headerTint = 0.07;
+const _contrastTintScale = 0.0;
 
 Color _tinted(Color base, Color accent, double amount) =>
     Color.alphaBlend(accent.withValues(alpha: amount), base);
@@ -45,25 +47,44 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.onAccent,
     required this.danger,
     required this.header,
+    this.highContrast = false,
   });
 
-  AppColors.from(PaletteColors p, {required this.dark})
-    : surface = Color(p.surface),
-      low = _tinted(Color(p.low), Color(p.accent), _cardTint),
-      container = _tinted(Color(p.container), Color(p.accent), _cardTint),
-      high = Color(p.high),
-      hairline = Color(p.hairline),
-      muted = Color(p.muted),
-      text = Color(p.text),
-      textSoft = Color(p.textSoft),
-      accent = Color(p.accent),
-      accentSoft = Color(p.accentSoft),
-      accentText = Color(p.accentText),
-      onAccent = Color(p.onAccent),
-      danger = Color(p.danger),
-      header = _tinted(Color(p.surface), Color(p.accent), _headerTint);
+  /// [p] yüksek kontrastta zaten dönüştürülmüş renklerdir, bkz.
+  /// [ColorPalette.colors].
+  AppColors.from(
+    PaletteColors p, {
+    required this.dark,
+    this.highContrast = false,
+  }) : surface = Color(p.surface),
+       low = _tinted(
+         Color(p.low),
+         Color(p.accent),
+         _cardTint * (highContrast ? _contrastTintScale : 1),
+       ),
+       container = _tinted(
+         Color(p.container),
+         Color(p.accent),
+         _cardTint * (highContrast ? _contrastTintScale : 1),
+       ),
+       high = Color(p.high),
+       hairline = Color(p.hairline),
+       muted = Color(p.muted),
+       text = Color(p.text),
+       textSoft = Color(p.textSoft),
+       accent = Color(p.accent),
+       accentSoft = Color(p.accentSoft),
+       accentText = Color(p.accentText),
+       onAccent = Color(p.onAccent),
+       danger = Color(p.danger),
+       header = _tinted(
+         Color(p.surface),
+         Color(p.accent),
+         _headerTint * (highContrast ? _contrastTintScale : 1),
+       );
 
   final bool dark;
+  final bool highContrast;
   final Color surface;
   final Color low;
   final Color container;
@@ -86,12 +107,16 @@ class AppColors extends ThemeExtension<AppColors> {
     final base = hue.value == null ? accent : Color(hue.value!);
     return (
       background: Color.alphaBlend(
-        base.withValues(alpha: dark ? 0.2 : 0.14),
+        base.withValues(alpha: (dark ? 0.2 : 0.14) + (highContrast ? 0.12 : 0)),
         surface,
       ),
       foreground: hue.value == null
           ? accentText
-          : Color.lerp(base, dark ? Colors.white : Colors.black, 0.4)!,
+          : Color.lerp(
+              base,
+              dark ? Colors.white : Colors.black,
+              highContrast ? 0.75 : 0.4,
+            )!,
     );
   }
 
@@ -115,30 +140,42 @@ const _sans = 'PlusJakartaSans';
 const _tabular = [FontFeature.tabularFigures()];
 
 TextTheme _textTheme(AppColors c) {
+  // Yüksek kontrastta yazılar bir kademe kalınlaşır.
+  FontWeight w(FontWeight base) => c.highContrast
+      ? FontWeight.values[(FontWeight.values.indexOf(base) + 1).clamp(
+          0,
+          FontWeight.values.length - 1,
+        )]
+      : base;
   TextStyle serif(double size, double height, FontWeight weight) => TextStyle(
     fontFamily: _serif,
     fontSize: size,
     height: height / size,
-    fontWeight: weight,
+    fontWeight: w(weight),
     color: c.text,
   );
   TextStyle sans(double size, double height) => TextStyle(
     fontFamily: _sans,
     fontSize: size,
     height: height / size,
+    fontWeight: w(FontWeight.w400),
     color: c.text,
   );
   // Etiketler, saatler ve çipler: aynı yazı tipi, hafif aralıklı.
-  TextStyle label(double size, double height, double tracking, FontWeight w) =>
-      TextStyle(
-        fontFamily: _sans,
-        fontSize: size,
-        height: height / size,
-        letterSpacing: size * tracking,
-        fontWeight: w,
-        fontFeatures: _tabular,
-        color: c.textSoft,
-      );
+  TextStyle label(
+    double size,
+    double height,
+    double tracking,
+    FontWeight weight,
+  ) => TextStyle(
+    fontFamily: _sans,
+    fontSize: size,
+    height: height / size,
+    letterSpacing: size * tracking,
+    fontWeight: w(weight),
+    fontFeatures: _tabular,
+    color: c.textSoft,
+  );
 
   return TextTheme(
     headlineLarge: serif(28, 36, FontWeight.w400),
@@ -156,9 +193,17 @@ TextTheme _textTheme(AppColors c) {
   );
 }
 
-ThemeData buildTheme(Brightness brightness, {ColorPalette palette = nocturne}) {
+ThemeData buildTheme(
+  Brightness brightness, {
+  ColorPalette palette = nocturne,
+  bool highContrast = false,
+}) {
   final dark = brightness == Brightness.dark;
-  final c = AppColors.from(dark ? palette.dark : palette.light, dark: dark);
+  final c = AppColors.from(
+    palette.colors(dark: dark, highContrast: highContrast),
+    dark: dark,
+    highContrast: highContrast,
+  );
   final scheme = ColorScheme(
     brightness: brightness,
     primary: c.accent,

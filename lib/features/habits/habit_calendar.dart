@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../domain/dates.dart';
 import '../../domain/habit.dart';
 import '../../domain/week.dart';
 import 'habit_form.dart';
@@ -13,6 +14,18 @@ final _weekdayFormat = DateFormat('EEE', 'tr');
 
 Color habitColor(Habit habit) =>
     Color(habitColors[habit.color % habitColors.length]);
+
+/// Dondurulmuş günlerin buz rengi; açık temada simge biraz koyulaşır.
+const _ice = Color(0xFF7FB8E0);
+
+Color _iceInk(AppColors c) => c.dark ? _ice : const Color(0xFF3F86B8);
+
+/// Sayılar ve dondurma kararlarıyla geçmiş; yüklenmeyen taraf boş sayılır.
+HabitHistory _watchHistory(WidgetRef ref, Habit habit) => HabitHistory(
+  habit,
+  ref.watch(habitHistoryProvider(habit.id)).value ?? const {},
+  ref.watch(habitFreezesProvider(habit.id)).value ?? const {},
+);
 
 /// Ay ekranının üstünde ajanda ile alışkanlık takvimleri arasında geçiş.
 /// Uzun basmak alışkanlığı düzenler, + yenisini ekler.
@@ -169,10 +182,7 @@ class HabitMonthGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final days = monthGrid(month, firstWeekday: firstWeekday);
-    final history = HabitHistory(
-      habit,
-      ref.watch(habitHistoryProvider(habit.id)).value ?? const {},
-    );
+    final history = _watchHistory(ref, habit);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -244,25 +254,40 @@ class _HabitDay extends StatelessWidget {
     final color = habitColor(habit);
     final count = history.countOn(day);
     final done = count >= habit.goal;
+    final frozen = history.frozenOn(day);
+    final chained = done || frozen;
     final planned = habit.plannedOn(day);
     final future = day.isAfter(today);
     final isToday = day == today;
     final missed =
         planned &&
         !done &&
+        !frozen &&
         !future &&
         !isToday &&
         !day.isBefore(habit.startDay);
     final lastWeekday = (firstWeekday + 5) % 7 + 1;
-    // Bağ yalnızca aynı satırdaki komşuya çizilir.
+    DateTime neighbour(int step) =>
+        DateTime(day.year, day.month, day.day + step);
+    // Bağ yalnızca aynı satırdaki komşuya çizilir; dondurulan günden de geçer.
     bool linked(int step) {
+      if (!chained) return false;
       if (day.weekday == (step < 0 ? firstWeekday : lastWeekday)) return false;
-      return history.doneOn(DateTime(day.year, day.month, day.day + step));
+      final other = neighbour(step);
+      return history.doneOn(other) || history.frozenOn(other);
     }
+
+    // Buza değen bağ buz renginde.
+    Color chainColor(int step) =>
+        (frozen || history.frozenOn(neighbour(step)) ? _ice : color).withValues(
+          alpha: 0.35,
+        );
 
     final Color textColor;
     if (done) {
       textColor = Colors.white;
+    } else if (frozen) {
+      textColor = c.text;
     } else if (isToday) {
       textColor = c.accentText;
     } else if (!planned || future) {
@@ -276,22 +301,21 @@ class _HabitDay extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, box) {
           final size = (box.maxHeight - 6).clamp(0.0, box.maxWidth - 6);
-          final chain = color.withValues(alpha: 0.35);
           return Stack(
             alignment: Alignment.center,
             children: [
               // Zincir: dün de yapıldıysa sola, yarın da yapıldıysa sağa bağ.
-              if (done && linked(-1))
+              if (linked(-1))
                 Positioned(
                   left: 0,
                   right: box.maxWidth / 2,
-                  child: Container(height: size * 0.32, color: chain),
+                  child: Container(height: size * 0.32, color: chainColor(-1)),
                 ),
-              if (done && linked(1))
+              if (linked(1))
                 Positioned(
                   left: box.maxWidth / 2,
                   right: 0,
-                  child: Container(height: size * 0.32, color: chain),
+                  child: Container(height: size * 0.32, color: chainColor(1)),
                 ),
               Container(
                 width: size,
@@ -301,10 +325,14 @@ class _HabitDay extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: done
                       ? color
+                      : frozen
+                      ? Color.alphaBlend(_ice.withValues(alpha: 0.3), c.low)
                       : count > 0
                       ? color.withValues(alpha: 0.25)
                       : null,
-                  border: isToday && !done
+                  border: frozen
+                      ? Border.all(color: _ice)
+                      : isToday && !done
                       ? Border.all(color: c.accent, width: 1.5)
                       : missed
                       ? Border.all(color: c.hairline)
@@ -320,7 +348,9 @@ class _HabitDay extends StatelessWidget {
                         fontWeight: done ? FontWeight.w600 : null,
                       ),
                     ),
-                    if (habit.isCounted && count > 0 && !done)
+                    if (frozen)
+                      Icon(Icons.ac_unit, size: 9, color: _iceInk(c))
+                    else if (habit.isCounted && count > 0 && !done)
                       Text(
                         '$count/${habit.goal}',
                         style: context.type.labelSmall?.copyWith(
@@ -344,7 +374,11 @@ class _HabitDay extends StatelessWidget {
     );
     final label =
         '${DateFormat('d MMMM', 'tr').format(day)}, '
-        '${done ? 'yapıldı' : (habit.isCounted ? '$count/${habit.goal}' : 'yapılmadı')}';
+        '${done
+            ? 'yapıldı'
+            : frozen
+            ? 'donduruldu'
+            : (habit.isCounted ? '$count/${habit.goal}' : 'yapılmadı')}';
     return Semantics(
       label: label,
       child: ExcludeSemantics(child: shown),
@@ -362,13 +396,15 @@ class HabitSummary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final history = HabitHistory(
-      habit,
-      ref.watch(habitHistoryProvider(habit.id)).value ?? const {},
-    );
+    final history = _watchHistory(ref, habit);
+    final loaded =
+        ref.watch(habitHistoryProvider(habit.id)).hasValue &&
+        ref.watch(habitFreezesProvider(habit.id)).hasValue;
+    if (loaded) _offerFreeze(context, ref, history);
     final count = history.countOn(today);
     final rate = history.rate(today);
     final planned = habit.plannedOn(today);
+    final rights = history.freezeRights(today).rights;
     final rule =
         '${habitDaysLabel(habit.weekdays)}'
         '${habit.isCounted ? ' · günde ${habit.goal}' : ''}';
@@ -384,9 +420,21 @@ class HabitSummary extends ConsumerWidget {
                 children: [
                   Text(habit.title, style: context.type.headlineSmall),
                   const SizedBox(height: 2),
-                  Text(
-                    rule,
-                    style: context.type.labelMedium?.copyWith(color: c.muted),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          rule,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.type.labelMedium?.copyWith(
+                            color: c.muted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _FreezeRights(rights: rights),
+                    ],
                   ),
                 ],
               ),
@@ -431,6 +479,97 @@ class HabitSummary extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+
+  /// Kaçırılan günler için dondurma teklifi; her alışkanlık için oturumda bir
+  /// kez sorulur. Dışarı dokunup kapatmak karar sayılmaz.
+  void _offerFreeze(BuildContext context, WidgetRef ref, HabitHistory history) {
+    final offer = history.freezeOffer(today);
+    if (offer == null) return;
+    final asked = ref.read(freezeAskedProvider);
+    // Aynı boşluk oturumda bir kez sorulur; uygulama açıkken yeni bir boşluk
+    // oluşursa yeniden sorulabilir.
+    if (!asked.add('${habit.id}@${dayKey(offer.days.first)}')) return;
+    final service = ref.read(habitServiceProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) return;
+      final frozen = await _askFreeze(context, offer, today);
+      if (frozen == true) {
+        await service.freeze(habit);
+      } else if (frozen == false) {
+        await service.declineFreeze(habit);
+      }
+    });
+  }
+}
+
+Future<bool?> _askFreeze(
+  BuildContext context,
+  FreezeOffer offer,
+  DateTime today,
+) {
+  final n = offer.days.length;
+  final missed = n > 1
+      ? '$n gün yapılmadı.'
+      : offer.days.single == addDays(today, -1)
+      ? 'Dün yapılmadı.'
+      : '${DateFormat('d MMMM', 'tr').format(offer.days.single)} yapılmadı.';
+  return showDialog<bool>(
+    context: context,
+    builder: (context) {
+      final c = context.colors;
+      return AlertDialog(
+        title: const Text('Seriyi dondur?'),
+        content: Text(
+          '$missed $n dondurma hakkı kullanıp ${offer.streak} günlük serini '
+          'koruyabilirsin. (Kalan hak: ${offer.rights})',
+          style: context.type.bodyMedium?.copyWith(color: c.textSoft),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Bozulsun', style: TextStyle(color: c.muted)),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.ac_unit, size: 16),
+            label: const Text('Dondur'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+/// Biriken dondurma hakları; seriyi korumak için kullanılır.
+class _FreezeRights extends StatelessWidget {
+  const _FreezeRights({required this.rights});
+
+  final int rights;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      label: 'Dondurma hakkı: $rights',
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.ac_unit,
+              size: 12,
+              color: rights > 0 ? _iceInk(c) : c.muted,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              '$rights hak',
+              style: context.type.labelMedium?.copyWith(color: c.muted),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

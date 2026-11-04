@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'settings.dart';
 
 /// Bir temanın tek parlaklıktaki renkleri, 0xAARRGGBB.
@@ -48,6 +50,104 @@ class PaletteColors {
 
   static String _hex(int color) =>
       '#${color.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+
+  /// Yüksek kontrast sürümü: zemin saf siyah/beyaz, yazılar saf beyaz/siyah,
+  /// ikincil yazılar ana yazıya çok yakın, kartlar ve kenarlıklar net ayrışır.
+  /// Vurgu rengi kimliği korur ama zemin üstünde okunur hale gelir.
+  PaletteColors withHighContrast({required bool dark}) {
+    final pure = dark ? 0xFFFFFFFF : 0xFF000000;
+    final paper = dark ? 0xFF000000 : 0xFFFFFFFF;
+    final bg = paper;
+    // Kartlar zeminden açıkça ayrışan nötr katmanlar.
+    final lowHc = mixColors(paper, pure, dark ? 0.10 : 0.05);
+    final containerHc = mixColors(paper, pure, dark ? 0.16 : 0.09);
+    final highHc = mixColors(paper, pure, dark ? 0.24 : 0.14);
+    final grounds = [bg, lowHc, containerHc];
+
+    final textHc = pure;
+    final accentHc = ensureContrast(accent, [bg], 4.5, toward: pure);
+    return PaletteColors(
+      surface: bg,
+      low: lowHc,
+      container: containerHc,
+      high: highHc,
+      // Kenarlıklar her katmanda yazı gibi seçilir.
+      hairline: ensureContrast(
+        mixColors(bg, textHc, 0.55),
+        grounds,
+        4.5,
+        toward: textHc,
+      ),
+      muted: ensureContrast(
+        mixColors(textHc, muted, 0.35),
+        grounds,
+        10,
+        toward: pure,
+      ),
+      text: textHc,
+      textSoft: ensureContrast(
+        mixColors(textHc, textSoft, 0.15),
+        grounds,
+        15,
+        toward: pure,
+      ),
+      accent: accentHc,
+      accentSoft: mixColors(bg, accentHc, dark ? 0.35 : 0.22),
+      accentText: ensureContrast(accentText, grounds, 9, toward: pure),
+      onAccent: contrastRatio(paper, accentHc) >= contrastRatio(pure, accentHc)
+          ? paper
+          : pure,
+      danger: ensureContrast(danger, grounds, 7, toward: pure),
+    );
+  }
+}
+
+/// İki rengi sRGB kanallarında karıştırır; t=0 [a], t=1 [b].
+int mixColors(int a, int b, double t) {
+  int ch(int shift) {
+    final x = (a >> shift) & 0xFF;
+    final y = (b >> shift) & 0xFF;
+    return (x + (y - x) * t).round().clamp(0, 255);
+  }
+
+  return (ch(24) << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/// WCAG göreli parlaklığı (alfa yok sayılır).
+double relativeLuminance(int color) {
+  double lin(int shift) {
+    final c = ((color >> shift) & 0xFF) / 255;
+    return c <= 0.03928
+        ? c / 12.92
+        : math.pow((c + 0.055) / 1.055, 2.4) as double;
+  }
+
+  return 0.2126 * lin(16) + 0.7152 * lin(8) + 0.0722 * lin(0);
+}
+
+/// WCAG kontrast oranı, 1–21.
+double contrastRatio(int a, int b) {
+  final la = relativeLuminance(a);
+  final lb = relativeLuminance(b);
+  final hi = la > lb ? la : lb;
+  final lo = la > lb ? lb : la;
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/// [color], tüm [grounds] üzerinde en az [target] kontrasta ulaşana dek
+/// [toward] rengine adım adım yaklaştırılır.
+int ensureContrast(
+  int color,
+  List<int> grounds,
+  double target, {
+  required int toward,
+}) {
+  bool ok(int c) => grounds.every((g) => contrastRatio(c, g) >= target);
+  for (var i = 0; i <= 40; i++) {
+    final c = mixColors(color, toward, i / 40);
+    if (ok(c)) return c;
+  }
+  return toward;
 }
 
 /// Seçilebilir renk teması; açık ve koyu sürümüyle.
@@ -63,6 +163,12 @@ class ColorPalette {
   final String name;
   final PaletteColors dark;
   final PaletteColors light;
+
+  /// Kontrast ayarına göre kullanılacak renkler.
+  PaletteColors colors({required bool dark, bool highContrast = false}) {
+    final base = dark ? this.dark : light;
+    return highContrast ? base.withHighContrast(dark: dark) : base;
+  }
 }
 
 /// Stitch “Nocturne Agenda”. Açık sürüm aynı tonlardan, kâğıt hissiyle
@@ -289,19 +395,24 @@ ColorPalette paletteById(String id) =>
     palettes.firstWhere((p) => p.id == id, orElse: () => nocturne);
 
 /// İki widget'ın anlık görüntüsüne yazılan görünüm: tema kipi, seçili temanın
-/// renkleri ve widget ayarları.
+/// (kontrast uygulanmış) renkleri ve widget ayarları.
 Map<String, dynamic> widgetAppearance(AppSettings settings) {
   final palette = paletteById(settings.palette);
   return {
     'theme': settings.theme,
     'palette': palette.id,
     'colors': {
-      'dark': palette.dark.toWidgetJson(),
-      'light': palette.light.toWidgetJson(),
+      'dark': palette
+          .colors(dark: true, highContrast: settings.highContrast)
+          .toWidgetJson(),
+      'light': palette
+          .colors(dark: false, highContrast: settings.highContrast)
+          .toWidgetJson(),
     },
     'widgetStyle': {
       'opacity': settings.widgetOpacity,
       'radius': settings.widgetRadius,
+      'highContrast': settings.highContrast,
     },
   };
 }
