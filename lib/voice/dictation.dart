@@ -17,7 +17,9 @@ class Dictation {
     this.silenceLimit = const Duration(seconds: 8),
     this.maxDuration = const Duration(minutes: 3),
     this.restartDelay = const Duration(milliseconds: 200),
-  });
+    this.pauseGap = const Duration(milliseconds: 1200),
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
 
   final VoiceInput _voice;
   final void Function(String text) onText;
@@ -26,6 +28,16 @@ class Dictation {
   final Duration silenceLimit;
   final Duration maxDuration;
   final Duration restartDelay;
+
+  /// Bu kadar sessizlikten sonra gelen ara sonuç, önceki parçanın devamı
+  /// değilse yeni cümledir: önceki parça yerinde kalır.
+  final Duration pauseGap;
+  final DateTime Function() _now;
+  DateTime? _lastHeard;
+
+  /// Biten son parça: önceki oturumun geç gelen sonucu yeni oturuma düşerse
+  /// ikinci kez yazılmaz.
+  String _lastPart = '';
 
   bool _active = false;
   int _session = 0;
@@ -49,6 +61,8 @@ class Dictation {
     _failures = 0;
     _committed = text.trim();
     _segment = '';
+    _lastPart = '';
+    _lastHeard = null;
     _written = text;
     _clock
       ..reset()
@@ -68,6 +82,8 @@ class Dictation {
   void edited(String text) {
     _committed = text.trim();
     _segment = '';
+    _lastPart = '';
+    _lastHeard = null;
     _written = text;
   }
 
@@ -95,9 +111,17 @@ class Dictation {
     final words = text.trim();
     // Boş ara sonuç yazılanı silmesin.
     if (!_active || session != _session || words.isEmpty) return;
+    if (_segment.isEmpty && words.toLowerCase() == _lastPart.toLowerCase()) {
+      return;
+    }
     _failures = 0;
-    // Servis yeni cümlede ara sonuçları baştan gönderir; önceki parça kalır.
-    if (_startsOver(words)) _commit();
+    final now = _now();
+    final last = _lastHeard;
+    _lastHeard = now;
+    // Servis duraklamadan sonra ara sonuçları baştan gönderir; önceki parça
+    // kalır.
+    final paused = last != null && now.difference(last) >= pauseGap;
+    if (_startsOver(words, paused: paused)) _commit();
     _segment = words;
     if (isFinal) _commit();
     _armSilence();
@@ -105,13 +129,29 @@ class Dictation {
     onText(_written);
   }
 
-  bool _startsOver(String words) {
-    if (_segment.isEmpty || words.length >= _segment.length) return false;
-    return _firstWord(words) != _firstWord(_segment);
+  /// Ara sonuç önceki parçanın devamı değilse yeni cümle başlamıştır.
+  ///
+  /// Arka arkaya gelen ara sonuçlarda servis son kelimeleri düzeltebilir; bu
+  /// yüzden yalnızca kısalıp başka kelimeyle başlayan sonuç yeni sayılır.
+  /// Duraklamadan sonra ise devam eden sonuç önceki parçayı aynen tekrarlar
+  /// (son kelimesi düzelmiş olabilir); tekrarlamıyorsa yenidir.
+  bool _startsOver(String words, {required bool paused}) {
+    if (_segment.isEmpty) return false;
+    final next = _words(words);
+    final prev = _words(_segment);
+    if (!paused) {
+      return next.length < prev.length && next.first != prev.first;
+    }
+    final keep = prev.length > 1 ? prev.length - 1 : 1;
+    if (next.length < keep) return true;
+    for (var i = 0; i < keep; i++) {
+      if (next[i] != prev[i]) return true;
+    }
+    return false;
   }
 
-  static String _firstWord(String text) =>
-      text.split(RegExp(r'\s+')).first.toLowerCase();
+  static List<String> _words(String text) =>
+      text.toLowerCase().split(RegExp(r'\s+'));
 
   void _ended(int session) {
     if (!_active || session != _session) return;
@@ -153,6 +193,7 @@ class Dictation {
   }
 
   void _commit() {
+    if (_segment.isNotEmpty) _lastPart = _segment;
     _committed = _join(_committed, _segment);
     _segment = '';
   }

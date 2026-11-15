@@ -235,7 +235,13 @@ class _HabitFormState extends ConsumerState<_HabitForm> {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                          color: Color(habitColors[i]),
+                          color: Color(
+                            habitColorFor(
+                              i,
+                              monochrome: c.monochrome,
+                              dark: c.dark,
+                            ),
+                          ),
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: i == color ? c.text : Colors.transparent,

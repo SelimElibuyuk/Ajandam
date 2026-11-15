@@ -4,6 +4,7 @@ import 'package:ajandam/app/app.dart';
 import 'package:ajandam/app/providers.dart';
 import 'package:ajandam/app/router.dart';
 import 'package:ajandam/data/db/app_database.dart';
+import 'package:ajandam/data/repositories/settings_repository.dart';
 import 'package:ajandam/domain/dates.dart';
 import 'package:ajandam/domain/habit_service.dart';
 import 'package:ajandam/domain/item_service.dart';
@@ -72,13 +73,20 @@ void main() {
   late _FakeLinks links;
   late _FakeVoice voice;
 
-  Future<void> pumpApp(WidgetTester tester) async {
+  Future<void> pumpApp(WidgetTester tester, {bool tipsSeen = true}) async {
     links = _FakeLinks();
     voice = _FakeVoice();
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     final db = AppDatabase(NativeDatabase.memory());
+    if (tipsSeen) {
+      await tester.runAsync(() async {
+        final repo = SettingsRepository(db);
+        await repo.markTipSeen(SettingsRepository.tipsHome);
+        await repo.markTipSeen(SettingsRepository.tipsQuickAdd);
+      });
+    }
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -111,6 +119,61 @@ void main() {
     await tester.tap(find.text('Hızlı görev ekle (ör. 15:30 Arama)'));
     await settle(tester);
   }
+
+  testWidgets('ilk açılışta ipuçları bir kez çıkar', (tester) async {
+    await pumpApp(tester, tipsSeen: false);
+    await settle(tester);
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(find.text("Ajandam'a hoş geldin"), findsOneWidget);
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.text('İleri'));
+      await settle(tester);
+    }
+    expect(find.text('Ayarlar', skipOffstage: false), findsWidgets);
+    await tester.tap(find.text('Tamam'));
+    await settle(tester);
+    expect(find.text("Ajandam'a hoş geldin"), findsNothing);
+
+    await openQuickAdd(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    await settle(tester);
+    expect(find.text('Konuşur gibi yaz'), findsOneWidget);
+    await tester.tap(find.text('Geç'));
+    await settle(tester);
+    expect(find.text('Konuşur gibi yaz'), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await settle(tester);
+
+    // İkinci açılışta çıkmaz.
+    await openQuickAdd(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    await settle(tester);
+    expect(find.text('Konuşur gibi yaz'), findsNothing);
+    await closeApp(tester);
+  });
+
+  testWidgets('Ayarlardan rehber ve ipuçları yeniden açılır', (tester) async {
+    await pumpApp(tester);
+    await settle(tester);
+    await tester.tap(find.byTooltip('Ayarlar').first);
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Kullanım rehberi'), 200);
+    await tester.tap(find.text('Kullanım rehberi'));
+    await settle(tester);
+    expect(find.text('Ajandan ana ekranında'), findsOneWidget);
+    await tester.tap(find.text('Atla'));
+    await settle(tester);
+
+    await tester.tap(find.text('İpuçlarını yeniden göster'));
+    await settle(tester);
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(find.text("Ajandam'a hoş geldin"), findsOneWidget);
+    await tester.tap(find.text('Geç'));
+    await settle(tester);
+    await closeApp(tester);
+  });
 
   testWidgets('Ay açılır, Hafta ve Ayarlar geçişleri çalışır', (tester) async {
     await pumpApp(tester);

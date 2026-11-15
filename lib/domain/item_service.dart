@@ -74,6 +74,9 @@ class ItemService {
   /// Arka plan işlerinde süreç kapanabileceği için hemen planlanır.
   final bool _deferReplan;
   final WidgetGateway _widget;
+
+  /// Girdiler değişince çağrılır (takvim eşitlemesi buradan tetiklenir).
+  void Function()? onChanged;
   Timer? _replanTimer;
   Timer? _widgetTimer;
   bool _rearmPending = false;
@@ -122,6 +125,7 @@ class ItemService {
       endDay: lastDay,
       important: important,
       anchorDay: isEvent || recurrence != null ? null : first,
+      // Saatsiz görev ayardaki varsayılan saatsiz hatırlatmayı izler.
       reminderMin: at == null ? null : reminderMin,
       recurrence: recurrence,
       createdAt: now,
@@ -347,7 +351,8 @@ class ItemService {
     await _replan(rearm: rearm);
   }
 
-  Future<void> replan() => _replan();
+  /// Girdiler değişmeden bildirimleri ve widget'ı yeniler.
+  Future<void> replan() => _replan(notify: false);
 
   /// Bekleyen planlamayı hemen uygular, ör. uygulama arka plana geçerken.
   Future<void> flushReplan() async {
@@ -406,7 +411,8 @@ class ItemService {
     );
   }
 
-  Future<void> _replan({bool rearm = false}) async {
+  Future<void> _replan({bool rearm = false, bool notify = true}) async {
+    if (notify) onChanged?.call();
     if (!_deferReplan) {
       await _applyPlan(rearm: rearm);
       await _publishWidget();
@@ -435,7 +441,12 @@ class ItemService {
       items.putIfAbsent(item.id, () => item);
     }
     await _reminders.replaceAll(
-      planNotifications(items.values, settings.lifecycle, now),
+      planNotifications(
+        items.values,
+        settings.lifecycle,
+        now,
+        untimedDefault: settings.untimedReminderMin,
+      ),
       rearm: rearm,
     );
   }

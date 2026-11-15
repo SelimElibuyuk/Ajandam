@@ -9,6 +9,8 @@ import '../data/db/app_database.dart';
 import '../data/repositories/habit_repository.dart';
 import '../data/repositories/item_repository.dart';
 import '../data/repositories/settings_repository.dart';
+import '../data/sync/calendar_sync.dart';
+import '../data/sync/device_calendar.dart';
 import '../domain/habit_service.dart';
 import '../domain/item_service.dart';
 import '../widget_bridge/home_widget_bridge.dart';
@@ -20,11 +22,24 @@ const actionTomorrow = 'tomorrow';
 const actionExtend = 'extend';
 
 const _maintenanceTask = 'ajandam.maintenance';
+const _calendarTask = 'ajandam.calendar';
 
 List<String> payloadItemIds(String? payload) {
   if (payload == null) return const [];
   final data = jsonDecode(payload) as Map<String, dynamic>;
   return (data['ids'] as List).cast<String>();
+}
+
+/// Bildirime dokununca açılacak yer: gün verildiyse gün, yoksa ilk girdi.
+typedef NotificationTarget = ({String? itemId, String? day});
+
+NotificationTarget? payloadTarget(String? payload) {
+  if (payload == null) return null;
+  final data = jsonDecode(payload) as Map<String, dynamic>;
+  final day = data['day'] as String?;
+  final ids = (data['ids'] as List).cast<String>();
+  if (day == null && ids.isEmpty) return null;
+  return (itemId: ids.isEmpty ? null : ids.first, day: day);
 }
 
 ItemService buildItemService(AppDatabase db) => ItemService(
@@ -45,13 +60,23 @@ HabitService buildHabitService(AppDatabase db) => HabitService(
 Future<void> _withService(
   Future<void> Function(ItemService) work, {
   Future<void> Function(HabitService)? habits,
+  bool calendar = false,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.instance.init();
   final db = AppDatabase();
   try {
-    await work(buildItemService(db));
+    final service = buildItemService(db);
+    await work(service);
     if (habits != null) await habits(buildHabitService(db));
+    if (calendar) {
+      await CalendarSync(
+        db: db,
+        gateway: const DeviceCalendar(),
+        newId: const Uuid().v7,
+        onLocalChange: service.replan,
+      ).sync();
+    }
   } finally {
     await db.close();
   }
@@ -86,6 +111,10 @@ Future<void> onWidgetAction(Uri? uri) => _withService(
 @pragma('vm:entry-point')
 void backgroundDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    if (task == _calendarTask) {
+      await _withService((_) async {}, calendar: true);
+      return true;
+    }
     await _withService(
       (service) => service.runMaintenance(),
       habits: (habits) async {
@@ -93,6 +122,7 @@ void backgroundDispatcher() {
         await habits.applyWidgetActions();
         await habits.publishWidget();
       },
+      calendar: true,
     );
     return true;
   });
@@ -105,6 +135,14 @@ Future<void> registerBackgroundWork() async {
     _maintenanceTask,
     _maintenanceTask,
     frequency: const Duration(hours: 1),
+    existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+  );
+  // Takvim bağlı değilse iş hemen biter.
+  await Workmanager().registerPeriodicTask(
+    _calendarTask,
+    _calendarTask,
+    frequency: const Duration(minutes: 15),
+    constraints: Constraints(networkType: NetworkType.connected),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
   );
 }

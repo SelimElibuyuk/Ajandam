@@ -1,5 +1,6 @@
 import '../../domain/item_service.dart';
 import '../../domain/settings.dart';
+import '../../domain/untimed_reminder.dart';
 import '../db/app_database.dart';
 
 class SettingsRepository implements SettingsStore {
@@ -18,6 +19,7 @@ class SettingsRepository implements SettingsStore {
     batch.insertAllOnConflictUpdate(_db.settings, [
       _row('week_start', s.weekStart),
       _row('default_reminder_min', s.defaultReminderMin),
+      _row('untimed_reminder_min', s.untimedReminderMin),
       _row('auto_rollover', s.autoRollover),
       _row('lifecycle_enabled', s.lifecycleEnabled),
       _row('lifecycle_ttl_days', s.lifecycleTtlDays),
@@ -30,6 +32,26 @@ class SettingsRepository implements SettingsStore {
       _row('high_contrast', s.highContrast),
     ]);
   });
+
+  /// Ana ekran ve ekleme kutusu ipuçları ([tipsHome], [tipsQuickAdd]) bir kez
+  /// gösterilir. Ayarlardan ayrı tutulur ki kaydı hatırlatmaları yeniden
+  /// kurdurmasın.
+  static const tipsHome = 'tips_home';
+  static const tipsQuickAdd = 'tips_quick_add';
+
+  Future<bool> tipSeen(String key) async {
+    final row = await (_db.select(
+      _db.settings,
+    )..where((t) => t.key.equals(key))).getSingleOrNull();
+    return row?.value == 'true';
+  }
+
+  Future<void> markTipSeen(String key) =>
+      _db.into(_db.settings).insertOnConflictUpdate(_row(key, true));
+
+  Future<void> resetTips() => (_db.delete(
+    _db.settings,
+  )..where((t) => t.key.isIn([tipsHome, tipsQuickAdd]))).go();
 
   SettingsCompanion _row(String key, Object value) =>
       SettingsCompanion.insert(key: key, value: '$value');
@@ -44,6 +66,13 @@ class SettingsRepository implements SettingsStore {
     return AppSettings(
       weekStart: number('week_start', d.weekStart),
       defaultReminderMin: number('default_reminder_min', d.defaultReminderMin),
+      untimedReminderMin: switch (number(
+        'untimed_reminder_min',
+        d.untimedReminderMin,
+      )) {
+        final v when isValidUntimedOffset(v) => v,
+        _ => d.untimedReminderMin,
+      },
       autoRollover: flag('auto_rollover', d.autoRollover),
       lifecycleEnabled: flag('lifecycle_enabled', d.lifecycleEnabled),
       lifecycleTtlDays: number('lifecycle_ttl_days', d.lifecycleTtlDays),

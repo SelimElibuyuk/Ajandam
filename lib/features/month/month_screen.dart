@@ -11,6 +11,7 @@ import '../../domain/settings.dart';
 import '../../domain/week.dart';
 import '../../ui/app_chrome.dart';
 import '../day/day_list.dart';
+import '../guide/tips.dart';
 import '../habits/habit_calendar.dart';
 
 final _monthFormat = DateFormat('MMMM y', 'tr');
@@ -48,6 +49,7 @@ class _MonthScreenState extends ConsumerState<MonthScreen> {
     return Column(
       children: [
         AppHeader(
+          settingsKey: HomeTipKeys.settings,
           title: Text('Ajandam', style: context.type.headlineSmall),
           action: atToday && _month == _firstOfMonth(today)
               ? null
@@ -60,7 +62,10 @@ class _MonthScreenState extends ConsumerState<MonthScreen> {
                 ),
         ),
         const SizedBox(height: 10),
-        HabitTabs(habits: habits, selected: habit),
+        KeyedSubtree(
+          key: HomeTipKeys.habits,
+          child: HabitTabs(habits: habits, selected: habit),
+        ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
@@ -136,7 +141,7 @@ class _MonthScreenState extends ConsumerState<MonthScreen> {
             ],
           ),
         ),
-        QuickAddBar(day: selected),
+        QuickAddBar(key: HomeTipKeys.add, day: selected),
       ],
     );
   }

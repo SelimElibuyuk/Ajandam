@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/repositories/settings_repository.dart';
 import '../domain/dates.dart';
 import '../domain/palettes.dart';
 import '../domain/settings.dart';
@@ -31,6 +32,7 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
   late final AppLifecycleListener _lifecycle;
   DateTime _lastMaintenance = DateTime.now();
   StreamSubscription<Uri?>? _links;
+  StreamSubscription<void>? _calendarChanges;
   bool _quickAddOpen = false;
 
   @override
@@ -43,16 +45,42 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
         ref.read(habitServiceProvider).flush();
       },
     );
+    ref.listenManual(
+      calendarsProvider.select(
+        (v) => v.value?.any((c) => c.isVisible) ?? false,
+      ),
+      (_, connected) => _watchCalendar(connected),
+      fireImmediately: true,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Eşitleme, girdi değişikliklerini dinlemeye buradan başlar.
+      ref.read(calendarSyncProvider).schedule(const Duration(seconds: 1));
       _maintain(rearm: true);
       final links = ref.read(widgetLinksProvider);
-      links.initial().then(_openLink);
+      links.initial().then((uri) async {
+        await _openLink(uri);
+        // Widget'tan hızlı ekleme gibi bir bağlantıyla açılınca araya girmez.
+        if (uri == null) await _showTipsOnce();
+      });
       _links = links.clicks.listen(_openLink);
     });
   }
 
+  /// Uygulama açıkken takvimdeki değişiklik hemen eşitlenir.
+  void _watchCalendar(bool connected) {
+    _calendarChanges?.cancel();
+    _calendarChanges = null;
+    if (!connected) return;
+    final sync = ref.read(calendarSyncProvider);
+    _calendarChanges = ref
+        .read(calendarGatewayProvider)
+        .changes()
+        .listen((_) => sync.schedule(), onError: (_) {});
+  }
+
   @override
   void dispose() {
+    _calendarChanges?.cancel();
     _lifecycle.dispose();
     _links?.cancel();
     super.dispose();
@@ -86,6 +114,12 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
     }
   }
 
+  Future<void> _showTipsOnce() async {
+    final repo = ref.read(settingsRepositoryProvider);
+    if (await repo.tipSeen(SettingsRepository.tipsHome)) return;
+    ref.read(homeTipsProvider.notifier).request();
+  }
+
   /// Widget'tan eklenince iş bitti demektir, kullanıcı ana ekrana döner.
   Future<void> _openQuickAdd(DateTime? day, {bool voice = false}) async {
     final context = rootNavigatorKey.currentContext;
@@ -94,6 +128,12 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
     await showQuickAdd(context, day: day, coldStart: true, voice: voice);
     _quickAddOpen = false;
     await ref.read(itemServiceProvider).flushReplan();
+    // Pencere kapanınca süreç durabilir; takvime hemen yazılır.
+    await ref
+        .read(calendarSyncProvider)
+        .sync()
+        .timeout(const Duration(seconds: 5), onTimeout: () => null)
+        .catchError((_) => null);
     await SystemNavigator.pop();
   }
 
@@ -101,6 +141,7 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
     ref.read(itemServiceProvider).applyWidgetActions();
     ref.read(habitServiceProvider).applyWidgetActions();
     ref.read(todayProvider.notifier).refresh();
+    ref.read(calendarSyncProvider).schedule(const Duration(milliseconds: 500));
     if (DateTime.now().difference(_lastMaintenance) > _maintenanceGap) {
       _maintain();
     }
@@ -116,6 +157,7 @@ class _AjandamAppState extends ConsumerState<AjandamApp> {
   @override
   Widget build(BuildContext context) {
     ref.listen(todayProvider, (_, _) => _maintain());
+
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     final palette = paletteById(settings.palette);
 

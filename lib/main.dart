@@ -27,9 +27,9 @@ Future<void> main() async {
 Future<void> _startNotifications() async {
   try {
     final notifications = NotificationService.instance;
-    await notifications.init(onOpenItem: _openItem);
-    final launched = await notifications.launchItem();
-    if (launched != null) _openItem(launched);
+    await notifications.init(onOpen: _openTarget);
+    final launched = await notifications.launchTarget();
+    if (launched != null) _openTarget(launched);
     await notifications.requestPermission();
     await registerBackgroundWork();
     await HomeWidget.registerInteractivityCallback(onWidgetAction);
@@ -40,4 +40,13 @@ Future<void> _startNotifications() async {
   }
 }
 
-void _openItem(String id) => appRouter.push('/item/$id');
+/// Saatsiz görev özeti günü, diğer bildirimler girdiyi açar.
+void _openTarget(NotificationTarget target) {
+  final day = target.day;
+  final id = target.itemId;
+  if (day != null) {
+    appRouter.push('/day/$day');
+  } else if (id != null) {
+    appRouter.push('/item/$id');
+  }
+}

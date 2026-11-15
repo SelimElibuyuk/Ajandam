@@ -157,12 +157,16 @@ class ColorPalette {
     required this.name,
     required this.dark,
     required this.light,
+    this.monochrome = false,
   });
 
   final String id;
   final String name;
   final PaletteColors dark;
   final PaletteColors light;
+
+  /// Renksiz tema: çipler ve alışkanlık renkleri de griye döner.
+  final bool monochrome;
 
   /// Kontrast ayarına göre kullanılacak renkler.
   PaletteColors colors({required bool dark, bool highContrast = false}) {
@@ -283,7 +287,7 @@ const kehribar = ColorPalette(
 /// Ajanda defteri kırmızısı.
 const bordo = ColorPalette(
   id: 'bordo',
-  name: 'Bordo',
+  name: 'Gül Kurusu',
   dark: PaletteColors(
     surface: 0xFF161113,
     low: 0xFF1F161A,
@@ -388,8 +392,45 @@ const deniz = ColorPalette(
   ),
 );
 
+/// Tamamen gri: vurgu koyu kipte beyaza, açık kipte siyaha yakın.
+const monokrom = ColorPalette(
+  id: 'monokrom',
+  name: 'Monokrom',
+  monochrome: true,
+  dark: PaletteColors(
+    surface: 0xFF121212,
+    low: 0xFF1A1A1A,
+    container: 0xFF1F1F1F,
+    high: 0xFF2A2A2A,
+    hairline: 0xFF333333,
+    muted: 0xFF8E8E8E,
+    text: 0xFFE6E6E6,
+    textSoft: 0xFFC6C6C6,
+    accent: 0xFFE0E0E0,
+    accentSoft: 0xFF3A3A3A,
+    accentText: 0xFFF2F2F2,
+    onAccent: 0xFF121212,
+    danger: 0xFFFFB4AB,
+  ),
+  light: PaletteColors(
+    surface: 0xFFF5F5F5,
+    low: 0xFFFFFFFF,
+    container: 0xFFEBEBEB,
+    high: 0xFFE0E0E0,
+    hairline: 0xFFD6D6D6,
+    muted: 0xFF6E6E6E,
+    text: 0xFF1A1A1A,
+    textSoft: 0xFF424242,
+    accent: 0xFF1F1F1F,
+    accentSoft: 0xFFE3E3E3,
+    accentText: 0xFF2B2B2B,
+    onAccent: 0xFFFFFFFF,
+    danger: 0xFFB3261E,
+  ),
+);
+
 /// Yeni renk temaları buraya eklenir; ayarlar ve widget'lar listeyi okur.
-const palettes = [nocturne, orman, kehribar, bordo, lavanta, deniz];
+const palettes = [nocturne, orman, kehribar, bordo, lavanta, deniz, monokrom];
 
 ColorPalette paletteById(String id) =>
     palettes.firstWhere((p) => p.id == id, orElse: () => nocturne);

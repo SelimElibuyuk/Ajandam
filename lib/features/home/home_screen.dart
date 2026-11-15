@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../data/repositories/settings_repository.dart';
+import '../../ui/coach_tour.dart';
+import '../guide/tips.dart';
 import '../month/month_screen.dart';
 import '../week/week_screen.dart';
 
@@ -44,8 +47,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _weekTimer;
   }
 
+  CoachTour? _tips;
+
+  /// İpuçları Ay ekranındaki öğeleri gösterir; ekran oturunca açılır.
+  Future<void> _showTips() async {
+    if (_tips != null) return;
+    setState(() {
+      _page = _month;
+      _dx = 0;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.markTipSeen(SettingsRepository.tipsHome);
+    if (!mounted) return;
+    final tour = _tips = showCoachTour(context, homeTips());
+    await tour.done;
+    _tips = null;
+  }
+
   @override
   void dispose() {
+    _tips?.close();
     _weekTimer.cancel();
     _anim.dispose();
     super.dispose();
@@ -127,6 +150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         _dx = 0;
       });
     });
+    ref.listen(homeTipsProvider, (_, _) => _showTips());
     // Widget'tan bir alışkanlık açılınca takvimi Ay ekranında görünür.
     ref.listen(selectedHabitProvider, (_, id) {
       if (id != null && _page != _month) {
@@ -165,7 +189,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           },
         ),
       ),
-      bottomNavigationBar: _BottomNav(page: _page, onSelect: _openPage),
+      bottomNavigationBar: KeyedSubtree(
+        key: HomeTipKeys.nav,
+        child: _BottomNav(page: _page, onSelect: _openPage),
+      ),
     );
   }
 }

@@ -48,6 +48,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.danger,
     required this.header,
     this.highContrast = false,
+    this.monochrome = false,
   });
 
   /// [p] yüksek kontrastta zaten dönüştürülmüş renklerdir, bkz.
@@ -56,6 +57,7 @@ class AppColors extends ThemeExtension<AppColors> {
     PaletteColors p, {
     required this.dark,
     this.highContrast = false,
+    this.monochrome = false,
   }) : surface = Color(p.surface),
        low = _tinted(
          Color(p.low),
@@ -85,6 +87,9 @@ class AppColors extends ThemeExtension<AppColors> {
 
   final bool dark;
   final bool highContrast;
+
+  /// Renksiz tema: çip renk aileleri yok sayılır, her şey vurgu tonundadır.
+  final bool monochrome;
   final Color surface;
   final Color low;
   final Color container;
@@ -103,7 +108,9 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color header;
 
   /// Hafif renkli zemin ve okunur yazı: etkinlik kartları, çipler.
+  /// Monokrom temada renk ailesi yok sayılır; çip vurgunun gri tonunu alır.
   Tone tone([ChipHue hue = ChipHue.accent]) {
+    if (monochrome) hue = ChipHue.accent;
     final base = hue.value == null ? accent : Color(hue.value!);
     return (
       background: Color.alphaBlend(
@@ -203,6 +210,7 @@ ThemeData buildTheme(
     palette.colors(dark: dark, highContrast: highContrast),
     dark: dark,
     highContrast: highContrast,
+    monochrome: palette.monochrome,
   );
   final scheme = ColorScheme(
     brightness: brightness,

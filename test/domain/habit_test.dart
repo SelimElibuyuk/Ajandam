@@ -5,6 +5,8 @@ import 'package:ajandam/data/repositories/habit_repository.dart';
 import 'package:ajandam/data/repositories/settings_repository.dart';
 import 'package:ajandam/domain/habit.dart';
 import 'package:ajandam/domain/habit_service.dart';
+import 'package:ajandam/domain/palettes.dart';
+import 'package:ajandam/domain/settings.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -383,6 +385,94 @@ void main() {
       final entry = (json['habits'] as List).single as Map<String, dynamic>;
       expect(entry['olderStreak'], 3);
       expect(entry['frozen'], ['2026-11-18']);
+    });
+  });
+
+  group('monokrom', () {
+    bool grey(int c) =>
+        ((c >> 16) & 0xFF) == ((c >> 8) & 0xFF) &&
+        ((c >> 8) & 0xFF) == (c & 0xFF);
+
+    test('renkli temalarda alışkanlık rengi değişmez', () {
+      for (final dark in [true, false, null]) {
+        for (var i = 0; i < habitColors.length; i++) {
+          expect(
+            habitColorFor(i, monochrome: false, dark: dark),
+            habitColors[i],
+          );
+        }
+      }
+    });
+
+    test('gri, birbirinden ayrı ve zeminde okunur tonlar', () {
+      for (final dark in [true, false, null]) {
+        final greys = [
+          for (var i = 0; i < habitColors.length; i++)
+            habitColorFor(i, monochrome: true, dark: dark),
+        ];
+        expect(greys.every(grey), isTrue);
+        expect(greys.toSet(), hasLength(habitColors.length));
+        final grounds = [
+          if (dark != false) ...[monokrom.dark.surface, monokrom.dark.low],
+          if (dark != true) ...[monokrom.light.surface, monokrom.light.low],
+        ];
+        for (final c in greys) {
+          for (final g in grounds) {
+            expect(contrastRatio(c, g), greaterThanOrEqualTo(2.5));
+          }
+        }
+      }
+      // Sıra dışı değerler başa sarar.
+      expect(
+        habitColorFor(habitColors.length, monochrome: true, dark: true),
+        habitColorFor(0, monochrome: true, dark: true),
+      );
+    });
+
+    test('widget anlık görüntüsü gri renk taşır', () {
+      final habits = [
+        for (var i = 0; i < habitColors.length; i++)
+          Habit(
+            id: 'h$i',
+            title: 'A$i',
+            color: i,
+            startDay: _today,
+            createdAt: _today,
+            updatedAt: _today,
+          ),
+      ];
+      List<int> colorsFor(AppSettings settings) => [
+        for (final h
+            in buildHabitSnapshot(
+                  habits,
+                  const {},
+                  const {},
+                  from: _today,
+                  now: _today,
+                  settings: settings,
+                )['habits']
+                as List)
+          (h as Map<String, dynamic>)['color'] as int,
+      ];
+
+      expect(colorsFor(const AppSettings()), habitColors);
+      for (final theme in ['dark', 'light', 'system']) {
+        final greys = colorsFor(AppSettings(palette: 'monokrom', theme: theme));
+        expect(greys.every(grey), isTrue, reason: theme);
+        expect(greys.toSet(), hasLength(habitColors.length));
+        expect(
+          greys.first,
+          habitColorFor(
+            0,
+            monochrome: true,
+            dark: switch (theme) {
+              'dark' => true,
+              'light' => false,
+              _ => null,
+            },
+          ),
+        );
+      }
     });
   });
 }

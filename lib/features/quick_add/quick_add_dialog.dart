@@ -10,10 +10,13 @@ import '../../domain/nlp_parser.dart';
 import '../../domain/recurrence.dart';
 import '../../domain/reminder_planner.dart';
 import '../../domain/settings.dart';
+import '../../data/repositories/settings_repository.dart';
+import '../../ui/coach_tour.dart';
 import '../../ui/labels.dart';
 import '../../ui/recurrence_picker.dart';
 import '../../voice/dictation.dart';
 import '../../voice/voice_input.dart';
+import '../guide/tips.dart';
 
 Future<void> showQuickAdd(
   BuildContext context, {
@@ -87,9 +90,33 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
         }
         if (mounted) await _toggleVoice();
       });
-    } else if (widget.coldStart) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showKeyboard());
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _start());
     }
+  }
+
+  final _tipKeys = QuickAddTipKeys();
+  CoachTour? _tips;
+
+  /// İlk açılışta ipuçları gösterilir; klavye baloncukları örtmesin diye
+  /// tur bitene kadar kapalı kalır.
+  Future<void> _start() async {
+    final repo = ref.read(settingsRepositoryProvider);
+    if (!await repo.tipSeen(SettingsRepository.tipsQuickAdd)) {
+      if (!mounted) return;
+      _focus.unfocus();
+      await repo.markTipSeen(SettingsRepository.tipsQuickAdd);
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      if (!mounted) return;
+      final tour = _tips = showCoachTour(context, quickAddTips(_tipKeys));
+      await tour.done;
+      _tips = null;
+      if (!mounted) return;
+      _focus.requestFocus();
+      await _showKeyboard();
+      return;
+    }
+    if (widget.coldStart && mounted) await _showKeyboard();
   }
 
   Future<void> _toggleVoice() async {
@@ -138,6 +165,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
 
   @override
   void dispose() {
+    _tips?.close();
     _dictation.dispose();
     _controller.dispose();
     _focus.dispose();
@@ -296,6 +324,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
           children: [
             // Uzun girdiler satır kaydırarak tamamen görünür.
             TextField(
+              key: _tipKeys.field,
               controller: _controller,
               focusNode: _focus,
               autofocus: !widget.voice,
@@ -317,10 +346,12 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
             ),
             const SizedBox(height: 4),
             Wrap(
+              key: _tipKeys.chips,
               spacing: 6,
               runSpacing: 6,
               children: [
                 _chip(
+                  key: _tipKeys.kind,
                   hue: ChipHue.accent,
                   label: kind == ItemKind.event ? 'Etkinlik' : 'Görev',
                   icon: kind == ItemKind.event
@@ -393,6 +424,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
             Row(
               children: [
                 IconButton(
+                  key: _tipKeys.mic,
                   tooltip: _listening ? 'Dinlemeyi durdur' : 'Sesle yaz',
                   onPressed: _toggleVoice,
                   visualDensity: VisualDensity.compact,
@@ -435,6 +467,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
 
   /// [hue] verilmeyen çip henüz boş bir alandır ve sade kalır.
   Widget _chip({
+    Key? key,
     required String label,
     ChipHue? hue,
     IconData? icon,
@@ -443,6 +476,7 @@ class _QuickAddDialogState extends ConsumerState<QuickAddDialog> {
   }) {
     final tone = hue == null ? null : context.colors.tone(hue);
     return InputChip(
+      key: key,
       avatar: icon == null
           ? null
           : Icon(icon, size: 16, color: tone?.foreground),

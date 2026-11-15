@@ -4,12 +4,20 @@ import 'package:go_router/go_router.dart';
 import '../app/theme.dart';
 import '../features/quick_add/quick_add_dialog.dart';
 
-/// Ekranların üst şeridi: Solda başlık, sağda ayarları açan profil simgesi.
+/// Ekranların üst şeridi: Solda başlık, sağda ayarları açan dişli simgesi.
 class AppHeader extends StatelessWidget {
-  const AppHeader({super.key, required this.title, this.action});
+  const AppHeader({
+    super.key,
+    required this.title,
+    this.action,
+    this.settingsKey,
+  });
 
   final Widget title;
   final Widget? action;
+
+  /// İpucu baloncuğunun hedefi.
+  final Key? settingsKey;
 
   @override
   Widget build(BuildContext context) {
@@ -26,13 +34,14 @@ class AppHeader extends StatelessWidget {
           Expanded(child: title),
           ?action,
           IconButton(
+            key: settingsKey,
             tooltip: 'Ayarlar',
             onPressed: () => context.push('/settings'),
             icon: Container(
               width: 28,
               height: 28,
               decoration: BoxDecoration(color: c.high, shape: BoxShape.circle),
-              child: Icon(Icons.person_outline, size: 17, color: c.muted),
+              child: Icon(Icons.settings_outlined, size: 17, color: c.muted),
             ),
           ),
         ],

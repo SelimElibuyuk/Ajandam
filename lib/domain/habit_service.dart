@@ -253,7 +253,15 @@ Map<String, dynamic> buildHabitSnapshot(
         'title': habit.title.length > _maxTitle
             ? habit.title.substring(0, _maxTitle)
             : habit.title,
-        'color': habitColors[habit.color % habitColors.length],
+        'color': habitColorFor(
+          habit.color,
+          monochrome: paletteById(settings.palette).monochrome,
+          dark: switch (settings.theme) {
+            'dark' => true,
+            'light' => false,
+            _ => null,
+          },
+        ),
         'goal': habit.goal,
         'weekdays': (habit.weekdays.toList()..sort()),
         'start': dayKey(habit.startDay),

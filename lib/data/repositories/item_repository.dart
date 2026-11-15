@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../domain/dates.dart';
@@ -233,7 +235,28 @@ class ItemRepository implements ItemStore {
     await _purgeRow(id);
   });
 
+  /// Takvimde karşılığı olan satır silinirse takvimdeki de silinsin diye
+  /// eşitleme kuyruğuna not düşülür.
   Future<void> _purgeRow(String id) async {
+    final row = await (_db.select(
+      _items,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    final event = row?.googleEventId;
+    if (row != null &&
+        event != null &&
+        !row.readOnly &&
+        !event.contains('@') &&
+        int.tryParse(event) != null) {
+      await _db
+          .into(_db.syncQueue)
+          .insert(
+            SyncQueueCompanion.insert(
+              itemId: id,
+              op: 'delete',
+              payloadJson: jsonEncode({'event': int.parse(event)}),
+            ),
+          );
+    }
     await (_db.delete(_reminders)..where((r) => r.itemId.equals(id))).go();
     await (_db.delete(_items)..where((t) => t.id.equals(id))).go();
   }
@@ -323,6 +346,7 @@ class ItemRepository implements ItemStore {
       originalDay: row.originalDate == null
           ? null
           : parseDayKey(row.originalDate!),
+      readOnly: row.readOnly,
     );
   }
 

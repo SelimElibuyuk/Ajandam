@@ -1192,6 +1192,30 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readOnlyMeta = const VerificationMeta(
+    'readOnly',
+  );
+  @override
+  late final GeneratedColumn<bool> readOnly = GeneratedColumn<bool>(
+    'read_only',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("read_only" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1250,6 +1274,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     googleEventId,
     googleEtag,
     remoteUpdatedAt,
+    source,
+    readOnly,
     createdAt,
     updatedAt,
     deletedAt,
@@ -1425,6 +1451,18 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         ),
       );
     }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('read_only')) {
+      context.handle(
+        _readOnlyMeta,
+        readOnly.isAcceptableOrUnknown(data['read_only']!, _readOnlyMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1548,6 +1586,14 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         DriftSqlType.int,
         data['${effectivePrefix}remote_updated_at'],
       ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      ),
+      readOnly: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}read_only'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -1610,9 +1656,21 @@ class Item extends DataClass implements Insertable<Item> {
   final String? seriesId;
   final String? originalDate;
   final String? calendarId;
+
+  /// Takvimdeki satırın kimliği; açılmış tekrarlarda `kimlik@başlangıç`.
   final String? googleEventId;
+
+  /// Son eşitlemede takvimdeki satırın özeti, değişiklik buradan anlaşılır.
   final String? googleEtag;
+
+  /// Son eşitlemedeki [updatedAt]; daha yenisi yerel değişiklik demektir.
   final int? remoteUpdatedAt;
+
+  /// 'google': takvimden geldi, bağlantı kesilince uygulamadan da kalkar.
+  final String? source;
+
+  /// Takvimde yazma izni olmayan etkinlik; değişiklik takvime gitmez.
+  final bool readOnly;
   final int createdAt;
   final int updatedAt;
 
@@ -1642,6 +1700,8 @@ class Item extends DataClass implements Insertable<Item> {
     this.googleEventId,
     this.googleEtag,
     this.remoteUpdatedAt,
+    this.source,
+    required this.readOnly,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -1706,6 +1766,10 @@ class Item extends DataClass implements Insertable<Item> {
     if (!nullToAbsent || remoteUpdatedAt != null) {
       map['remote_updated_at'] = Variable<int>(remoteUpdatedAt);
     }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
+    }
+    map['read_only'] = Variable<bool>(readOnly);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -1771,6 +1835,10 @@ class Item extends DataClass implements Insertable<Item> {
       remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(remoteUpdatedAt),
+      source: source == null && nullToAbsent
+          ? const Value.absent()
+          : Value(source),
+      readOnly: Value(readOnly),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -1810,6 +1878,8 @@ class Item extends DataClass implements Insertable<Item> {
       googleEventId: serializer.fromJson<String?>(json['googleEventId']),
       googleEtag: serializer.fromJson<String?>(json['googleEtag']),
       remoteUpdatedAt: serializer.fromJson<int?>(json['remoteUpdatedAt']),
+      source: serializer.fromJson<String?>(json['source']),
+      readOnly: serializer.fromJson<bool>(json['readOnly']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
@@ -1842,6 +1912,8 @@ class Item extends DataClass implements Insertable<Item> {
       'googleEventId': serializer.toJson<String?>(googleEventId),
       'googleEtag': serializer.toJson<String?>(googleEtag),
       'remoteUpdatedAt': serializer.toJson<int?>(remoteUpdatedAt),
+      'source': serializer.toJson<String?>(source),
+      'readOnly': serializer.toJson<bool>(readOnly),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
@@ -1872,6 +1944,8 @@ class Item extends DataClass implements Insertable<Item> {
     Value<String?> googleEventId = const Value.absent(),
     Value<String?> googleEtag = const Value.absent(),
     Value<int?> remoteUpdatedAt = const Value.absent(),
+    Value<String?> source = const Value.absent(),
+    bool? readOnly,
     int? createdAt,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -1905,6 +1979,8 @@ class Item extends DataClass implements Insertable<Item> {
     remoteUpdatedAt: remoteUpdatedAt.present
         ? remoteUpdatedAt.value
         : this.remoteUpdatedAt,
+    source: source.present ? source.value : this.source,
+    readOnly: readOnly ?? this.readOnly,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -1950,6 +2026,8 @@ class Item extends DataClass implements Insertable<Item> {
       remoteUpdatedAt: data.remoteUpdatedAt.present
           ? data.remoteUpdatedAt.value
           : this.remoteUpdatedAt,
+      source: data.source.present ? data.source.value : this.source,
+      readOnly: data.readOnly.present ? data.readOnly.value : this.readOnly,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -1982,6 +2060,8 @@ class Item extends DataClass implements Insertable<Item> {
           ..write('googleEventId: $googleEventId, ')
           ..write('googleEtag: $googleEtag, ')
           ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('source: $source, ')
+          ..write('readOnly: $readOnly, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -2014,6 +2094,8 @@ class Item extends DataClass implements Insertable<Item> {
     googleEventId,
     googleEtag,
     remoteUpdatedAt,
+    source,
+    readOnly,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2045,6 +2127,8 @@ class Item extends DataClass implements Insertable<Item> {
           other.googleEventId == this.googleEventId &&
           other.googleEtag == this.googleEtag &&
           other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.source == this.source &&
+          other.readOnly == this.readOnly &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -2074,6 +2158,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<String?> googleEventId;
   final Value<String?> googleEtag;
   final Value<int?> remoteUpdatedAt;
+  final Value<String?> source;
+  final Value<bool> readOnly;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -2102,6 +2188,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.googleEventId = const Value.absent(),
     this.googleEtag = const Value.absent(),
     this.remoteUpdatedAt = const Value.absent(),
+    this.source = const Value.absent(),
+    this.readOnly = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2131,6 +2219,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     this.googleEventId = const Value.absent(),
     this.googleEtag = const Value.absent(),
     this.remoteUpdatedAt = const Value.absent(),
+    this.source = const Value.absent(),
+    this.readOnly = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -2164,6 +2254,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Expression<String>? googleEventId,
     Expression<String>? googleEtag,
     Expression<int>? remoteUpdatedAt,
+    Expression<String>? source,
+    Expression<bool>? readOnly,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -2194,6 +2286,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       if (googleEventId != null) 'google_event_id': googleEventId,
       if (googleEtag != null) 'google_etag': googleEtag,
       if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (source != null) 'source': source,
+      if (readOnly != null) 'read_only': readOnly,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -2225,6 +2319,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     Value<String?>? googleEventId,
     Value<String?>? googleEtag,
     Value<int?>? remoteUpdatedAt,
+    Value<String?>? source,
+    Value<bool>? readOnly,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -2254,6 +2350,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
       googleEventId: googleEventId ?? this.googleEventId,
       googleEtag: googleEtag ?? this.googleEtag,
       remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      source: source ?? this.source,
+      readOnly: readOnly ?? this.readOnly,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -2335,6 +2433,12 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     if (remoteUpdatedAt.present) {
       map['remote_updated_at'] = Variable<int>(remoteUpdatedAt.value);
     }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (readOnly.present) {
+      map['read_only'] = Variable<bool>(readOnly.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -2376,6 +2480,8 @@ class ItemsCompanion extends UpdateCompanion<Item> {
           ..write('googleEventId: $googleEventId, ')
           ..write('googleEtag: $googleEtag, ')
           ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('source: $source, ')
+          ..write('readOnly: $readOnly, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -5370,6 +5476,8 @@ typedef $$ItemsTableCreateCompanionBuilder = ItemsCompanion Function({
   Value<String?> googleEventId,
   Value<String?> googleEtag,
   Value<int?> remoteUpdatedAt,
+  Value<String?> source,
+  Value<bool> readOnly,
   required int createdAt,
   required int updatedAt,
   Value<int?> deletedAt,
@@ -5399,6 +5507,8 @@ typedef $$ItemsTableUpdateCompanionBuilder = ItemsCompanion Function({
   Value<String?> googleEventId,
   Value<String?> googleEtag,
   Value<int?> remoteUpdatedAt,
+  Value<String?> source,
+  Value<bool> readOnly,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int?> deletedAt,
@@ -5560,6 +5670,16 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDatabase, $ItemsTable> {
 
   ColumnFilters<int> get remoteUpdatedAt => $composableBuilder(
     column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get readOnly => $composableBuilder(
+    column: $table.readOnly,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5746,6 +5866,16 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get readOnly => $composableBuilder(
+    column: $table.readOnly,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -5874,6 +6004,12 @@ class $$ItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<bool> get readOnly =>
+      $composableBuilder(column: $table.readOnly, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -5983,6 +6119,8 @@ class $$ItemsTableTableManager
                 Value<String?> googleEventId = const Value.absent(),
                 Value<String?> googleEtag = const Value.absent(),
                 Value<int?> remoteUpdatedAt = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<bool> readOnly = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -6011,6 +6149,8 @@ class $$ItemsTableTableManager
                 googleEventId: googleEventId,
                 googleEtag: googleEtag,
                 remoteUpdatedAt: remoteUpdatedAt,
+                source: source,
+                readOnly: readOnly,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -6041,6 +6181,8 @@ class $$ItemsTableTableManager
                 Value<String?> googleEventId = const Value.absent(),
                 Value<String?> googleEtag = const Value.absent(),
                 Value<int?> remoteUpdatedAt = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<bool> readOnly = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -6069,6 +6211,8 @@ class $$ItemsTableTableManager
                 googleEventId: googleEventId,
                 googleEtag: googleEtag,
                 remoteUpdatedAt: remoteUpdatedAt,
+                source: source,
+                readOnly: readOnly,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

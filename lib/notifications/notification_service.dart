@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import '../domain/dates.dart';
 import '../domain/item_service.dart';
 import '../domain/reminder_planner.dart';
 import 'notification_actions.dart';
@@ -45,14 +46,14 @@ class NotificationService implements ReminderGateway {
         AndroidFlutterLocalNotificationsPlugin
       >();
 
-  Future<void> init({void Function(String itemId)? onOpenItem}) async {
+  Future<void> init({void Function(NotificationTarget target)? onOpen}) async {
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: (response) {
-        final id = _firstItem(response.payload);
-        if (id != null) onOpenItem?.call(id);
+        final target = payloadTarget(response.payload);
+        if (target != null) onOpen?.call(target);
       },
       onDidReceiveBackgroundNotificationResponse: onNotificationAction,
     );
@@ -61,12 +62,12 @@ class NotificationService implements ReminderGateway {
     if (!_ready.isCompleted) _ready.complete();
   }
 
-  /// Uygulama bildirime dokunularak açıldıysa ilgili girdiyi döndürür.
-  Future<String?> launchItem() async {
+  /// Uygulama bildirime dokunularak açıldıysa açılacak yeri döndürür.
+  Future<NotificationTarget?> launchTarget() async {
     final details = await _plugin.getNotificationAppLaunchDetails();
     if (details?.didNotificationLaunchApp != true) return null;
     final response = details!.notificationResponse;
-    return response?.actionId == null ? _firstItem(response?.payload) : null;
+    return response?.actionId == null ? payloadTarget(response?.payload) : null;
   }
 
   Future<bool> requestPermission() async =>
@@ -112,14 +113,18 @@ class NotificationService implements ReminderGateway {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       title: plan.title,
       body: plan.body,
-      payload: jsonEncode({'ids': plan.itemIds}),
+      payload: jsonEncode({
+        'ids': plan.itemIds,
+        if (plan.day != null) 'day': dayKey(plan.day!),
+      }),
     );
   }
 
   AndroidNotificationDetails _details(PlannedNotification plan) {
-    final channel = plan.type == NotificationType.item
-        ? _reminderChannel
-        : _lifecycleChannel;
+    final channel = switch (plan.type) {
+      NotificationType.item || NotificationType.untimed => _reminderChannel,
+      _ => _lifecycleChannel,
+    };
     return AndroidNotificationDetails(
       channel.id,
       channel.name,
@@ -128,18 +133,17 @@ class NotificationService implements ReminderGateway {
       priority: plan.type == NotificationType.item
           ? Priority.high
           : Priority.defaultPriority,
-      styleInformation: BigTextStyleInformation(plan.body),
+      styleInformation: plan.lines.isEmpty
+          ? BigTextStyleInformation(plan.body)
+          : InboxStyleInformation(plan.lines, contentTitle: plan.title),
       actions: switch (plan.type) {
         NotificationType.item => const [_done, _snooze, _tomorrow],
         NotificationType.lifecycle => const [_done, _extend],
         NotificationType.lifecycleGroup => const [_extend],
+        NotificationType.untimed =>
+          plan.itemIds.length == 1 ? const [_done] : const [],
       },
     );
-  }
-
-  static String? _firstItem(String? payload) {
-    final ids = payloadItemIds(payload);
-    return ids.isEmpty ? null : ids.first;
   }
 }
 

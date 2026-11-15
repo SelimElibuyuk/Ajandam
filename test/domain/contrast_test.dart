@@ -1,3 +1,4 @@
+import 'package:ajandam/app/theme.dart';
 import 'package:ajandam/domain/palettes.dart';
 import 'package:ajandam/domain/settings.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,6 +86,56 @@ void main() {
         'normal muted ${minOf((c) => c.muted, high: false).toStringAsFixed(2)}, '
         'normal soft ${minOf((c) => c.textSoft, high: false).toStringAsFixed(2)}',
       );
+    });
+  });
+
+  group('monokrom', () {
+    bool grey(int c) =>
+        ((c >> 16) & 0xFF) == ((c >> 8) & 0xFF) &&
+        ((c >> 8) & 0xFF) == (c & 0xFF);
+
+    for (final dark in [true, false]) {
+      for (final high in [false, true]) {
+        final mode =
+            '${dark ? 'koyu' : 'açık'}${high ? ' yüksek kontrast' : ''}';
+        test('$mode tüm renkler gri (uyarı kırmızısı hariç)', () {
+          final c = monokrom.colors(dark: dark, highContrast: high);
+          final all = [
+            c.surface, c.low, c.container, c.high, c.hairline, c.muted, //
+            c.text, c.textSoft, c.accent, c.accentSoft, c.accentText,
+            c.onAccent,
+          ];
+          expect(all.every(grey), isTrue);
+          expect(grey(c.danger), isFalse);
+          // Vurgu koyu kipte açık, açık kipte koyu; üstündeki yazı tersi.
+          final lum = relativeLuminance(c.accent);
+          expect(dark ? lum > 0.5 : lum < 0.1, isTrue);
+          expect(contrastRatio(c.accent, c.onAccent), greaterThanOrEqualTo(7));
+        });
+
+        test('$mode çip tonları renksiz', () {
+          final colors = AppColors.from(
+            monokrom.colors(dark: dark, highContrast: high),
+            dark: dark,
+            highContrast: high,
+            monochrome: true,
+          );
+          final accent = colors.tone();
+          for (final hue in ChipHue.values) {
+            final t = colors.tone(hue);
+            expect(grey(t.background.toARGB32()), isTrue);
+            expect(grey(t.foreground.toARGB32()), isTrue);
+            expect(t, accent);
+          }
+        });
+      }
+    }
+
+    test('diğer temalarda çip renkleri korunur', () {
+      final colors = AppColors.from(nocturne.dark, dark: true);
+      expect(colors.tone(ChipHue.time), isNot(colors.tone()));
+      expect(nocturne.monochrome, isFalse);
+      expect(monokrom.monochrome, isTrue);
     });
   });
 }

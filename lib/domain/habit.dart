@@ -11,6 +11,48 @@ const habitColors = [
   0xFF9AA552,
 ];
 
+/// Monokrom temada alışkanlık renklerinin gri karşılıkları; komşu sıralar
+/// parlaklıkça belirgin ayrışır. Koyu kipte açık griler, açık kipte koyu
+/// griler; [_monoBoth] ise iki kipte de okunan orta tonlardır (widget).
+const _monoDark = [
+  0xFFE8E8E8,
+  0xFFA0A0A0,
+  0xFFC8C8C8,
+  0xFF808080,
+  0xFFD8D8D8,
+  0xFFB4B4B4,
+];
+const _monoLight = [
+  0xFF202020,
+  0xFF707070,
+  0xFF404040,
+  0xFF888888,
+  0xFF303030,
+  0xFF585858,
+];
+const _monoBoth = [
+  0xFF626262,
+  0xFF949494,
+  0xFF6E6E6E,
+  0xFF9A9A9A,
+  0xFF7A7A7A,
+  0xFF888888,
+];
+
+/// Alışkanlığın [color] sırasına karşılık gelen renk, 0xAARRGGBB.
+/// [monochrome] temada gri tonlar döner; [dark] null ise renk hem koyu hem
+/// açık zeminde okunmalıdır (ör. sistem kipini izleyen widget).
+int habitColorFor(int color, {required bool monochrome, required bool? dark}) {
+  final list = !monochrome
+      ? habitColors
+      : dark == null
+      ? _monoBoth
+      : dark
+      ? _monoDark
+      : _monoLight;
+  return list[color % list.length];
+}
+
 /// Ajandadan ayrı izlenen, belirli günlerde tekrarlanan iş.
 class Habit {
   const Habit({

@@ -630,4 +630,233 @@ void main() {
       expect(r.title, 'tatil');
     });
   });
+
+  group('çeyrek, geçe, kala, buçuk', () {
+    void expectClock(String text, int h, int m, {String title = 'iş'}) {
+      final r = p(text);
+      expect([r.hour, r.minute], [h, m], reason: text);
+      expect(r.title, title, reason: text);
+      expect(r.durationMin, isNull, reason: text);
+    }
+
+    void expectNoTime(String text) {
+      final r = p(text);
+      expect(r.hour, isNull, reason: text);
+      expect(r.title, text, reason: text);
+    }
+
+    test('çeyrek geçe: rakam ve yazı, ekli ve eksiz', () {
+      expectClock("3'ü çeyrek geçe iş", 15, 15);
+      expectClock('3ü çeyrek geçe iş', 15, 15);
+      expectClock('3 çeyrek geçe iş', 15, 15);
+      expectClock('saat 3 çeyrek geçe iş', 15, 15);
+      expectClock('üçü çeyrek geçe iş', 15, 15);
+      expectClock('ucu ceyrek gece iş', 15, 15);
+      expectClock("10'u çeyrek geçe iş", 10, 15);
+      expectClock('onu çeyrek geçe iş', 10, 15);
+      expectClock('on biri çeyrek geçe iş', 11, 15);
+      expectClock('on ikiyi çeyrek geçe iş', 12, 15);
+      expectClock('biri çeyrek geçe iş', 13, 15);
+      expectClock('saat üç çeyrek geçe iş', 15, 15);
+    });
+
+    test('çeyrek kala ve çeyrek var', () {
+      expectClock("4'e çeyrek kala iş", 15, 45);
+      expectClock('4e çeyrek kala iş', 15, 45);
+      expectClock('dörde çeyrek kala iş', 15, 45);
+      expectClock('saat 4 çeyrek kala iş', 15, 45);
+      expectClock('beşe çeyrek var iş', 16, 45);
+      expectClock('on ikiye çeyrek kala iş', 11, 45);
+      expectClock('bire çeyrek kala iş', 12, 45);
+      expectClock('gece on ikiye çeyrek kala iş', 23, 45);
+      expectClock("gece 12'ye 5 kala iş", 23, 55);
+    });
+
+    test('dakikalı geçe ve kala', () {
+      expectClock("5'i 10 geçe iş", 17, 10);
+      expectClock('beşi on geçe iş', 17, 10);
+      expectClock("6'ya 15 kala iş", 17, 45);
+      expectClock('altıya yirmi kala iş', 17, 40);
+      expectClock('on biri yirmi beş geçe iş', 11, 25);
+      expectClock('sabah dokuzu çeyrek geçe iş', 9, 15);
+      expectClock('akşam sekize on kala iş', 19, 50);
+      expectClock('yediyi beş dakika geçe iş', 7, 5);
+      expectClock("11'e 10 dakika kala iş", 10, 50);
+    });
+
+    test('kala saatten önce', () {
+      expectClock('15 kala 6 iş', 17, 45);
+      expectClock('yirmi kala altı iş', 17, 40);
+      expectClock('çeyrek kala beş iş', 16, 45);
+      expectClock('sabah çeyrek kala 9 iş', 8, 45);
+    });
+
+    test('buçuk ve yarım', () {
+      expectClock('3 buçuk iş', 15, 30);
+      expectClock('üç buçuk iş', 15, 30);
+      expectClock('üç buçukta iş', 15, 30);
+      expectClock('10 buçukta iş', 10, 30);
+      expectClock('akşam dokuz buçuk iş', 21, 30);
+      expectClock('sabah 8 buçuk iş', 8, 30);
+      expectClock('saat yarımda iş', 12, 30);
+      expectClock('öğlen yarımda iş', 12, 30);
+      expectClock('gece yarımda iş', 0, 30);
+    });
+
+    test('saat olmayan ifadeler', () {
+      expectNoTime('on iki gece tatil');
+      expectNoTime('2 buçuk kilo elma');
+      expectNoTime('bir buçuk litre süt');
+      expectNoTime('işi yarımda bırakma');
+      expectNoTime('ona iki var');
+      expect(p('iki buçuk saat ders').hour, isNull);
+      expect(p('yarım saat sonra ara').minute, 30);
+    });
+
+    test('tarihle birlikte ve aralıklar', () {
+      const text = "yarın 3'ü çeyrek geçe dişçi";
+      final r = p(text);
+      expect(r.date, DateTime(2026, 11, 4));
+      expectTime(r, 15, 15);
+      expect(r.title, 'dişçi');
+      expect(
+        [for (final s in r.spans) text.substring(s.start, s.end)],
+        ['yarın', "3'ü çeyrek geçe"],
+      );
+      expect(r.spans.map((s) => s.field), [ParseField.date, ParseField.time]);
+    });
+
+    test('kapatılan saat başlıkta kalır', () {
+      final r = p("3'ü çeyrek geçe iş", disabled: {ParseField.time});
+      expect(r.hour, isNull);
+      expect(r.title, "3'ü çeyrek geçe iş");
+    });
+  });
+
+  group('günden önce ve sonra', () {
+    void expectDay(String text, DateTime day, {String title = 'iş'}) {
+      final r = p(text);
+      expect(r.date, day, reason: text);
+      expect(r.title, title, reason: text);
+    }
+
+    test('gün adından önce ve sonra', () {
+      // Bugün salı 3 kasım; gün adı yalın gün adı gibi çözülür.
+      expectDay('pazartesiden önce iş', DateTime(2026, 11, 8));
+      expectDay('pazartesiden sonra iş', DateTime(2026, 11, 10));
+      expectDay('salıdan sonra iş', DateTime(2026, 11, 11));
+      expectDay('salıdan önce iş', DateTime(2026, 11, 9));
+      expectDay('çarşambadan önce iş', DateTime(2026, 11, 3));
+      expectDay('çarşambadan sonra iş', DateTime(2026, 11, 5));
+      expectDay('perşembeden sonra iş', DateTime(2026, 11, 6));
+      expectDay('cumadan önce iş', DateTime(2026, 11, 5));
+      expectDay('cumartesiden sonra iş', DateTime(2026, 11, 8));
+      expectDay('pazardan önce iş', DateTime(2026, 11, 7));
+    });
+
+    test('yazım biçimleri', () {
+      expectDay("Salı'dan sonra iş", DateTime(2026, 11, 11));
+      expectDay('carsambadan once iş', DateTime(2026, 11, 3));
+      expectDay('CUMADAN SONRA iş', DateTime(2026, 11, 7));
+      expectDay('cuma gününden önce iş', DateTime(2026, 11, 5));
+    });
+
+    test('gün sayısıyla', () {
+      expectDay('cumadan 2 gün önce iş', DateTime(2026, 11, 4));
+      expectDay('cumadan iki gün sonra iş', DateTime(2026, 11, 8));
+      expectDay('cumadan bir hafta sonra iş', DateTime(2026, 11, 13));
+    });
+
+    test('haftaya', () {
+      expectDay('haftaya çarşambadan önce iş', DateTime(2026, 11, 10));
+      expectDay('gelecek hafta cumadan sonra iş', DateTime(2026, 11, 14));
+    });
+
+    test('bugünden ve yarından sonra', () {
+      expectDay('yarından sonra iş', DateTime(2026, 11, 5));
+      expectDay('yarindan sonra iş', DateTime(2026, 11, 5));
+      expectDay('bugünden sonra iş', DateTime(2026, 11, 4));
+      expectDay('yarından 2 gün sonra iş', DateTime(2026, 11, 6));
+    });
+
+    test('yazıyla N gün sonra', () {
+      expectDay('üç gün sonra iş', DateTime(2026, 11, 6));
+      expectDay('on gün sonra iş', DateTime(2026, 11, 13));
+      expectDay('3 gün sonra iş', DateTime(2026, 11, 6));
+    });
+
+    test('saatle birlikte', () {
+      const text = 'salıdan sonra beşe çeyrek kala toplantı';
+      final r = p(text);
+      expect(r.date, DateTime(2026, 11, 11));
+      expectTime(r, 16, 45);
+      expect(r.title, 'toplantı');
+      expect(
+        [for (final s in r.spans) text.substring(s.start, s.end)],
+        ['salıdan sonra', 'beşe çeyrek kala'],
+      );
+    });
+
+    test('mevcut ifadeler bozulmaz', () {
+      expect(p('salıdan cumaya kadar kurs').endDate, DateTime(2026, 11, 6));
+      expect(
+        p('pazartesiden itibaren her gün koşu').resolveDay(now, now),
+        DateTime(2026, 11, 9),
+      );
+      final r = p('salıdan sonra ara', disabled: {ParseField.date});
+      expect(r.date, isNull);
+      expect(r.title, 'salıdan sonra ara');
+    });
+  });
+
+  group('ayrık ekler ve çeyrekte', () {
+    test('ek ayrı yazılınca da saat anlaşılır', () {
+      final r = p('Saat 2 yi çeyrek geçe');
+      expectTime(r, 14, 15);
+      expect(r.title, '');
+      expectTime(p('4 e çeyrek kala ara'), 15, 45);
+      expectTime(p('5 i 10 geçe ara'), 17, 10);
+    });
+
+    test('çeyrekte / çeyrekde', () {
+      for (final t in ['Saat 2 çeyrekde', 'saat 2 çeyrekte', "2'yi çeyrekte"]) {
+        final r = p(t);
+        expectTime(r, 14, 15);
+        expect(r.title, '', reason: t);
+      }
+      expectTime(p('akşam yediyi çeyrekte yemek'), 19, 15);
+      expectTime(p('2 çeyrekte bitir'), 14, 15);
+    });
+  });
+
+  group('yazım hataları', () {
+    test('bir harf eksik/fazla/yanlış gün ve ay adları', () {
+      expect(p('saı toplantı').date, DateTime(2026, 11, 10));
+      expect(p('saı toplantı').title, 'toplantı');
+      expect(p('çarşmba rapor').date, DateTime(2026, 11, 4));
+      expect(p('perşebe spor').date, DateTime(2026, 11, 5));
+      expect(p('cumrtesi kahvaltı').date, DateTime(2026, 11, 7));
+      expect(p('yarn dişçi').date, DateTime(2026, 11, 4));
+      expect(p('yrain dişçi').date, DateTime(2026, 11, 4));
+      expect(p('15 aralk doğum günü').date, DateTime(2026, 12, 15));
+    });
+
+    test('ekli yanlış yazım ve aralık konumu', () {
+      final r = p('saıdan sonra ara');
+      expect(r.date, DateTime(2026, 11, 11));
+      expect(r.title, 'ara');
+      final s = r.spans.single;
+      expect('saıdan sonra ara'.substring(s.start, s.end), 'saıdan sonra');
+    });
+
+    test('gerçek sözcükler düzeltilmez', () {
+      expect(p('Ali ile kahve').date, isNull);
+      expect(p('Ali ile kahve').title, 'Ali ile kahve');
+      expect(p('salt okunur dosya').title, 'salt okunur dosya');
+      expect(p('ekip toplantısı').title, 'ekip toplantısı');
+      expect(p('kim arayacak').title, 'kim arayacak');
+      expect(p('insan kaynakları').title, 'insan kaynakları');
+      expect(p('yarım saat yürüyüş').date, isNull);
+    });
+  });
 }

@@ -74,9 +74,21 @@ class Items extends Table {
   TextColumn get seriesId => text().nullable()();
   TextColumn get originalDate => text().nullable()();
   TextColumn get calendarId => text().nullable().references(Calendars, #id)();
+
+  /// Takvimdeki satırın kimliği; açılmış tekrarlarda `kimlik@başlangıç`.
   TextColumn get googleEventId => text().nullable()();
+
+  /// Son eşitlemede takvimdeki satırın özeti, değişiklik buradan anlaşılır.
   TextColumn get googleEtag => text().nullable()();
+
+  /// Son eşitlemedeki [updatedAt]; daha yenisi yerel değişiklik demektir.
   IntColumn get remoteUpdatedAt => integer().nullable()();
+
+  /// 'google': takvimden geldi, bağlantı kesilince uygulamadan da kalkar.
+  TextColumn get source => text().nullable()();
+
+  /// Takvimde yazma izni olmayan etkinlik; değişiklik takvime gitmez.
+  BoolColumn get readOnly => boolean().withDefault(const Constant(false))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

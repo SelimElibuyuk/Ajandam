@@ -1,0 +1,18 @@
+name: calendar_bridge
+description: "Ajandam için Android takvim sağlayıcısına (CalendarContract) erişim."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.selimelibuyuk.calendar_bridge
+        pluginClass: CalendarBridgePlugin

@@ -27,6 +27,7 @@ class AgendaItem {
     this.recurrence,
     this.seriesId,
     this.originalDay,
+    this.readOnly = false,
   });
 
   final String id;
@@ -61,6 +62,10 @@ class AgendaItem {
   /// Tekrarsa ait olduğu seri ve serideki asıl günü.
   final String? seriesId;
   final DateTime? originalDay;
+
+  /// Google'da yazma izni olmayan etkinlik: değişiklik yalnızca uygulamada
+  /// kalır.
+  final bool readOnly;
 
   bool get isTask => kind == ItemKind.task;
   bool get isDone => doneAt != null;
@@ -97,6 +102,7 @@ class AgendaItem {
       recurrence: recurrence,
       seriesId: id,
       originalDay: dayOnly(target),
+      readOnly: readOnly,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -142,6 +148,7 @@ class AgendaItem {
     Object? originalDay = _keep,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? readOnly,
   }) => AgendaItem(
     id: id ?? this.id,
     kind: kind ?? this.kind,
@@ -175,6 +182,7 @@ class AgendaItem {
         : originalDay as DateTime?,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    readOnly: readOnly ?? this.readOnly,
   );
 }
 

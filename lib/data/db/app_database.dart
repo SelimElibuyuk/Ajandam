@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,6 +46,10 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await m.createTable(habitFreezes);
+      }
+      if (from < 5) {
+        await m.addColumn(items, items.source);
+        await m.addColumn(items, items.readOnly);
       }
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),

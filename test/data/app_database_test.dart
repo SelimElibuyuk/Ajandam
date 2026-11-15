@@ -14,6 +14,11 @@ ItemsCompanion _task(String id, {String title = 'Dişçi'}) =>
       updatedAt: 1,
     );
 
+/// Sürüm 5'te eklenen sütunlar; eski şemayı kurarken çıkarılır.
+final _v5Columns = RegExp(
+  r',\s*"(source" TEXT NULL|read_only" INTEGER NOT NULL DEFAULT 0 CHECK \("read_only" IN \(0, 1\)\))',
+);
+
 void main() {
   late AppDatabase db;
 
@@ -84,6 +89,7 @@ void main() {
               .get())
         row
             .read<String>('sql')
+            .replaceAll(_v5Columns, '')
             .replaceAll(
               RegExp(r',\s*"(end_date|series_id|original_date)" TEXT NULL'),
               '',
@@ -132,7 +138,7 @@ void main() {
                 "'habit_freezes')",
               )
               .get())
-        row.read<String>('sql'),
+        row.read<String>('sql').replaceAll(_v5Columns, ''),
     ];
     await fresh.close();
 
@@ -187,7 +193,7 @@ void main() {
                 "AND name NOT IN ('sqlite_sequence', 'habit_freezes')",
               )
               .get())
-        row.read<String>('sql'),
+        row.read<String>('sql').replaceAll(_v5Columns, ''),
     ];
     await fresh.close();
     expect(ddl.any((sql) => sql.contains('habit_freezes')), isFalse);

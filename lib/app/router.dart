@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/dates.dart';
 import '../features/day/day_screen.dart';
+import '../features/guide/guide_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/item/item_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -30,6 +31,7 @@ GoRouter buildRouter() => GoRouter(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
     ),
+    GoRoute(path: '/guide', builder: (context, state) => const GuideScreen()),
     GoRoute(path: '/trash', builder: (context, state) => const TrashScreen()),
   ],
 );

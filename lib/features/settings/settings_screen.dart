@@ -4,10 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../app/version.dart';
 import '../../domain/palettes.dart';
 import '../../domain/settings.dart';
 import '../../ui/labels.dart';
 import '../../widget_bridge/home_widget_bridge.dart';
+import 'calendar_settings.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -48,12 +50,27 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
+          ListTile(
+            title: const Text('Saatsiz görev hatırlatması'),
+            subtitle: Text(untimedReminderLabel(s.untimedReminderMin)),
+            onTap: () async {
+              final picked = await pickUntimedReminder(
+                context,
+                s.untimedReminderMin,
+              );
+              if (picked != null) {
+                await _update(ref, s.copyWith(untimedReminderMin: picked));
+              }
+            },
+          ),
           SwitchListTile(
             title: const Text('Otomatik taşıma'),
             subtitle: const Text('Tamamlanmayan görevler ertesi güne geçer'),
             value: s.autoRollover,
             onChanged: (v) => _update(ref, s.copyWith(autoRollover: v)),
           ),
+          const _Header('Google Takvim'),
+          const CalendarSection(),
           const _Header('Görev ömrü'),
           SwitchListTile(
             title: const Text('Yapılmayan görevleri sil'),
@@ -112,6 +129,21 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const _Header('Diğer'),
           ListTile(
+            leading: const Icon(Icons.menu_book_outlined),
+            title: const Text('Kullanım rehberi'),
+            onTap: () => context.push('/guide'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.tips_and_updates_outlined),
+            title: const Text('İpuçlarını yeniden göster'),
+            onTap: () async {
+              await ref.read(settingsRepositoryProvider).resetTips();
+              if (!context.mounted) return;
+              ref.read(homeTipsProvider.notifier).request();
+              context.go('/');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.delete_outline),
             title: const Text('Çöp kutusu'),
             onTap: () => context.push('/trash'),
@@ -122,7 +154,12 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _showBatteryHelp(context),
           ),
           const SizedBox(height: 16),
-          Center(child: Text('Sürüm 0.1.0', style: theme.textTheme.bodySmall)),
+          Center(
+            child: Text(
+              'Sürüm $appVersion ($appBuild)',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
           const SizedBox(height: 16),
         ],
       ),
@@ -318,11 +355,17 @@ class _PaletteSwatch extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(
-                palette.name,
-                style: context.type.bodyMedium?.copyWith(
-                  color: Color(colors.text),
-                  fontWeight: selected ? FontWeight.w600 : null,
+              // Uzun adlar ("Gül Kurusu") tek satırda kalır.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  palette.name,
+                  maxLines: 1,
+                  style: context.type.bodyMedium?.copyWith(
+                    color: Color(colors.text),
+                    fontWeight: selected ? FontWeight.w600 : null,
+                  ),
                 ),
               ),
             ],

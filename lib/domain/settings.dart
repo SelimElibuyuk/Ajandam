@@ -1,9 +1,11 @@
 import 'task_lifecycle.dart';
+import 'untimed_reminder.dart';
 
 class AppSettings {
   const AppSettings({
     this.weekStart = DateTime.monday,
     this.defaultReminderMin = 15,
+    this.untimedReminderMin = untimedEveningDefault,
     this.autoRollover = true,
     this.lifecycleEnabled = true,
     this.lifecycleTtlDays = 15,
@@ -18,6 +20,9 @@ class AppSettings {
 
   final int weekStart;
   final int defaultReminderMin;
+
+  /// Saatsiz görevlerin varsayılan hatırlatması, bkz. untimed_reminder.dart.
+  final int untimedReminderMin;
   final bool autoRollover;
   final bool lifecycleEnabled;
   final int lifecycleTtlDays;
@@ -50,6 +55,7 @@ class AppSettings {
   AppSettings copyWith({
     int? weekStart,
     int? defaultReminderMin,
+    int? untimedReminderMin,
     bool? autoRollover,
     bool? lifecycleEnabled,
     int? lifecycleTtlDays,
@@ -63,6 +69,7 @@ class AppSettings {
   }) => AppSettings(
     weekStart: weekStart ?? this.weekStart,
     defaultReminderMin: defaultReminderMin ?? this.defaultReminderMin,
+    untimedReminderMin: untimedReminderMin ?? this.untimedReminderMin,
     autoRollover: autoRollover ?? this.autoRollover,
     lifecycleEnabled: lifecycleEnabled ?? this.lifecycleEnabled,
     lifecycleTtlDays: lifecycleTtlDays ?? this.lifecycleTtlDays,

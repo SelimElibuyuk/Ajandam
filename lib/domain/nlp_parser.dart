@@ -128,6 +128,77 @@ const _hourWords = {
 const _hourWordAlt =
     r'on\s+bir|on\s+iki|on|bir|iki|uc|dort|bes|alti|yedi|sekiz|dokuz';
 
+/// “beşi çeyrek geçe”: belirtme hâlindeki saatler.
+const _hourWordsAcc = {
+  'on biri': 11,
+  'on ikiyi': 12,
+  'biri': 1,
+  'ikiyi': 2,
+  'ucu': 3,
+  'dordu': 4,
+  'besi': 5,
+  'altiyi': 6,
+  'yediyi': 7,
+  'sekizi': 8,
+  'dokuzu': 9,
+  'onu': 10,
+};
+
+/// “dörde çeyrek kala”: yönelme hâlindeki saatler.
+const _hourWordsDat = {
+  'on bire': 11,
+  'on ikiye': 12,
+  'bire': 1,
+  'ikiye': 2,
+  'uce': 3,
+  'dorde': 4,
+  'bese': 5,
+  'altiya': 6,
+  'yediye': 7,
+  'sekize': 8,
+  'dokuza': 9,
+  'ona': 10,
+};
+
+/// Uzun biçim önce denensin diye uzunluğa göre sıralı seçenekler.
+String _wordAlt(Iterable<String> words) =>
+    (words.toList()..sort((a, b) => b.length.compareTo(a.length)))
+        .map((w) => w.replaceAll(' ', r'\s+'))
+        .join('|');
+
+final _hourAccAlt = _wordAlt([..._hourWordsAcc.keys, ..._hourWords.keys]);
+final _hourDatAlt = _wordAlt([..._hourWordsDat.keys, ..._hourWords.keys]);
+
+/// Yazıyla sayılar: “yirmi beş”, “on”, “üç”.
+const _ones = {
+  'bir': 1,
+  'iki': 2,
+  'uc': 3,
+  'dort': 4,
+  'bes': 5,
+  'alti': 6,
+  'yedi': 7,
+  'sekiz': 8,
+  'dokuz': 9,
+};
+const _tens = {'on': 10, 'yirmi': 20, 'otuz': 30, 'kirk': 40, 'elli': 50};
+const _onesAlt = 'bir|iki|uc|dort|bes|alti|yedi|sekiz|dokuz';
+const _numberWordAlt =
+    '(?:on|yirmi|otuz|kirk|elli)(?:\\s+(?:$_onesAlt))?|$_onesAlt';
+
+/// “yirmi beş” → 25, “14” → 14
+int? _numberValue(String text) {
+  final asInt = int.tryParse(text);
+  if (asInt != null) return asInt;
+  var total = 0;
+  for (final part in text.split(RegExp(r'\s+'))) {
+    final v = _tens[part] ?? _ones[part];
+    if (v == null) return null;
+    total += v;
+  }
+  return total;
+}
+
 /// Saat aralığının bağlacı: “10 ile 11”, “10 ve 11”, “10'la 11”, “10 ila 11”
 const _rangeAnd = r"(?:\s+(?:ile|ve|ila)|['’]?(?:la|le|yla|yle))";
 
@@ -297,8 +368,253 @@ class NlpParser {
     DateTime now, {
     Set<ParseField> disabled = const {},
   }) {
-    return _Run(text, _fold(text), now, disabled).run();
+    final fixes = _typoFixes(text);
+    if (fixes.isEmpty) return _Run(text, _fold(text), now, disabled).run();
+    // Düzeltme yalnızca tarih/saat olarak anlaşılırsa kalır; “salt” gibi
+    // başlıkta kalan sözcükler kendi hâline döner.
+    var result = _runFixed(text, fixes, now, disabled);
+    final kept = [
+      for (final f in fixes)
+        if (result.$1.spans.any((s) => s.start <= f.at && f.fixedEnd <= s.end))
+          f,
+    ];
+    if (kept.length != fixes.length) {
+      if (kept.isEmpty) return _Run(text, _fold(text), now, disabled).run();
+      result = _runFixed(text, kept, now, disabled);
+    }
+    return _mapBack(result.$1, kept);
   }
+
+  (ParsedInput, String) _runFixed(
+    String text,
+    List<_Fix> fixes,
+    DateTime now,
+    Set<ParseField> disabled,
+  ) {
+    final out = StringBuffer();
+    var at = 0;
+    var shift = 0;
+    for (final f in fixes) {
+      out.write(text.substring(at, f.start));
+      f.at = f.start + shift;
+      out.write(f.word);
+      f.fixedEnd = f.at + f.word.length;
+      shift += f.word.length - (f.end - f.start);
+      at = f.end;
+    }
+    out.write(text.substring(at));
+    final fixed = out.toString();
+    return (_Run(fixed, _fold(fixed), now, disabled).run(), fixed);
+  }
+
+  /// Düzeltilmiş metindeki aralıkları özgün metne çevirir.
+  ParsedInput _mapBack(ParsedInput r, List<_Fix> fixes) {
+    int map(int p, {required bool end}) {
+      var shift = 0;
+      for (final f in fixes) {
+        if (p <= f.at) break;
+        if (p < f.fixedEnd) return end ? f.end : f.start;
+        shift = f.fixedEnd - f.end;
+      }
+      return p - shift;
+    }
+
+    return ParsedInput(
+      title: r.title,
+      spans: [
+        for (final s in r.spans)
+          ParsedSpan(map(s.start, end: false), map(s.end, end: true), s.field),
+      ],
+      date: r.date,
+      hour: r.hour,
+      minute: r.minute,
+      durationMin: r.durationMin,
+      endDate: r.endDate,
+      recurrence: r.recurrence,
+      repeatFor: r.repeatFor,
+      repeatCount: r.repeatCount,
+    );
+  }
+}
+
+/// Yazım hatası düzeltmesi: “saı” → “salı”, “yarn” → “yarın”.
+class _Fix {
+  _Fix(this.start, this.end, this.word);
+
+  final int start;
+  final int end;
+  final String word;
+
+  /// Düzeltilmiş metindeki konumu.
+  int at = 0;
+  int fixedEnd = 0;
+}
+
+/// Bir harf eksik, fazla, yanlış veya yer değiştirmiş yazılabilen sözcükler.
+const _fuzzyWords = [
+  'pazartesi', 'sali', 'carsamba', 'persembe', 'cuma', 'cumartesi', 'pazar', //
+  'ocak', 'subat', 'mart', 'nisan', 'mayis', 'haziran', 'temmuz', 'agustos',
+  'eylul', 'ekim', 'kasim', 'aralik', //
+  'yarin', 'bugun', 'haftaya', 'aksam', 'sabah', 'ogleden', 'ceyrek', 'bucuk',
+  'gece', 'kala', 'dakika',
+];
+
+/// Gerçek sözcük olup bir anahtar sözcüğe benzeyenler düzeltilmez.
+const _fuzzyStop = {
+  'sal',
+  'salt',
+  'sale',
+  'sala',
+  'ali',
+  'yari',
+  'yarim',
+  'yaris',
+  'yarik',
+  'karin',
+  'sarin',
+  'kasik',
+  'asim',
+  'kazim',
+  'ekip',
+  'ekin',
+  'eki',
+  'kim',
+  'haftada',
+  'bugu',
+  'kuma',
+  'puma',
+  'duma',
+  'saba',
+  'kale',
+  'kal',
+  'kalan',
+  'ala',
+  'hece',
+  'gene',
+  'gec',
+  'ece',
+  'part',
+  'art',
+  'mat',
+  'azar',
+  'aksa',
+  'aksan',
+  'kama',
+  'kara',
+  'kafa',
+  'cena',
+  'cami',
+  'bucak',
+  'insan',
+  'mayin',
+};
+
+/// Gün ve ay adlarından sonra gelebilen ekler.
+const _fuzzySuffixes = [
+  '',
+  'ya',
+  'ye',
+  'a',
+  'e',
+  'yi',
+  'i',
+  'dan',
+  'den',
+  'tan',
+  'ten',
+  'da',
+  'de',
+  'ta',
+  'te',
+  'nin',
+  'in',
+  'un',
+  'nun',
+  'ki',
+  'leri',
+  'lari',
+  'n',
+];
+
+/// Türkçe yazımıyla anahtar sözcükler; düzeltilen sözcük yerine konur.
+const _fuzzyDisplay = {
+  'sali': 'salı',
+  'carsamba': 'çarşamba',
+  'persembe': 'perşembe',
+  'subat': 'şubat',
+  'mayis': 'mayıs',
+  'agustos': 'ağustos',
+  'eylul': 'eylül',
+  'kasim': 'kasım',
+  'aralik': 'aralık',
+  'yarin': 'yarın',
+  'bugun': 'bugün',
+  'aksam': 'akşam',
+  'ogleden': 'öğleden',
+  'ceyrek': 'çeyrek',
+  'bucuk': 'buçuk',
+};
+
+List<_Fix> _typoFixes(String text) {
+  final fixes = <_Fix>[];
+  final folded = _fold(text);
+  for (final m in RegExp(r'[a-z]{3,}').allMatches(folded)) {
+    final word = m[0]!;
+    if (_fuzzyStop.contains(word) || _isKnown(word)) continue;
+    final fix = _closest(word);
+    if (fix != null) {
+      final (stem, suffix) = fix;
+      fixes.add(_Fix(m.start, m.end, '${_fuzzyDisplay[stem] ?? stem}$suffix'));
+    }
+  }
+  return fixes;
+}
+
+/// Sözcük olduğu gibi (ekiyle) bir anahtar sözcükse düzeltme gerekmez.
+bool _isKnown(String word) {
+  for (final k in _fuzzyWords) {
+    if (word.startsWith(k) &&
+        _fuzzySuffixes.contains(word.substring(k.length))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Tek harf farkla en yakın anahtar sözcük ve eki.
+(String, String)? _closest(String word) {
+  for (final suffix in _fuzzySuffixes) {
+    if (!word.endsWith(suffix)) continue;
+    final stem = word.substring(0, word.length - suffix.length);
+    if (stem.length < 3 || _fuzzyStop.contains(stem)) continue;
+    for (final k in _fuzzyWords) {
+      // Kısa sözcüklerde yalnızca eksik harf affedilir: “saı” → “salı”.
+      if (k.length <= 4 && stem.length >= k.length) continue;
+      if (_oneEdit(stem, k)) return (k, suffix);
+    }
+  }
+  return null;
+}
+
+/// Tek ekleme, silme, değiştirme veya yan yana iki harfin yer değişimi.
+bool _oneEdit(String a, String b) {
+  if (a == b || (a.length - b.length).abs() > 1) return false;
+  if (a.length == b.length) {
+    final diff = [
+      for (var i = 0; i < a.length; i++)
+        if (a[i] != b[i]) i,
+    ];
+    if (diff.length == 1) return true;
+    return diff.length == 2 &&
+        diff[1] == diff[0] + 1 &&
+        a[diff[0]] == b[diff[1]] &&
+        a[diff[1]] == b[diff[0]];
+  }
+  final (long, short) = a.length > b.length ? (a, b) : (b, a);
+  for (var i = 0; i < long.length; i++) {
+    if (long.substring(0, i) + long.substring(i + 1) == short) return true;
+  }
+  return false;
 }
 
 class _Run {
@@ -322,6 +638,7 @@ class _Run {
   DateTime get today => dayOnly(now);
 
   ParsedInput run() {
+    if (!disabled.contains(ParseField.date)) _dayOffset();
     if (!disabled.contains(ParseField.time) &&
         !disabled.contains(ParseField.date)) {
       _relative();
@@ -338,11 +655,16 @@ class _Run {
       _since();
       _until();
     }
-    if (!disabled.contains(ParseField.time)) _timeRange();
+    var clock = false;
+    if (!disabled.contains(ParseField.time)) {
+      _timeRange();
+      // “10 dakika kala” süre sanılmasın diye süreden önce bakılır.
+      clock = _quarter();
+    }
     if (!disabled.contains(ParseField.duration) && duration == null) {
       _duration();
     }
-    if (!disabled.contains(ParseField.time)) _time();
+    if (!disabled.contains(ParseField.time) && !clock) _time();
     if (!disabled.contains(ParseField.date)) _date();
     if (hour == null && duration != null) {
       duration = null;
@@ -832,14 +1154,60 @@ class _Run {
     return false;
   }
 
+  /// Güne göre önce/sonra: “çarşambadan önce” salı, “salıdan sonra” çarşamba,
+  /// “cumadan 2 gün önce”, “haftaya çarşambadan önce”, “yarından sonra”.
+  /// Gün adı, yalın gün adı gibi çözülür, sonra kaydırılır.
+  void _dayOffset() {
+    const ablative = "(?:\\s+gunu(?:n)?)?['’]?(?:dan|den|tan|ten|nden)";
+    const amount = '(?:\\s+(?<n>\\d{1,3}|$_numberWordAlt)\\s+(?<u>gun|hafta))?';
+    int? shift(RegExpMatch m) {
+      final n = m.namedGroup('n');
+      if (n == null) return 1;
+      final v = _numberValue(n);
+      if (v == null || v < 1) return null;
+      return m.namedGroup('u') == 'hafta' ? v * 7 : v;
+    }
+
+    _scan(
+          '$_b(?:(?<p>haftaya|gelecek\\s+hafta|onumuzdeki\\s+hafta|next\\s+week'
+          '|gelecek|onumuzdeki|bu)\\s+)?(?<d>$_weekdayAlt)$ablative'
+          '$amount\\s+(?<w>once|sonra)$_e',
+          ParseField.date,
+          (m) {
+            final n = shift(m);
+            if (n == null) return false;
+            final target = _weekdays[m.namedGroup('d')!]!;
+            final p = m.namedGroup('p');
+            final base = p == null || p == 'bu'
+                ? _nextWeekday(target)
+                : _weekdayNextWeek(target);
+            date = addDays(base, m.namedGroup('w') == 'once' ? -n : n);
+            return true;
+          },
+        ) ||
+        _scan(
+          "$_b(?<d>bugun|yarin|obur\\s*gun)['’]?(?:den|dan)$amount\\s+sonra$_e",
+          ParseField.date,
+          (m) {
+            final n = shift(m);
+            if (n == null) return false;
+            final d = m.namedGroup('d')!;
+            final base = d == 'bugun' ? 0 : (d == 'yarin' ? 1 : 2);
+            date = addDays(today, base + n);
+            return true;
+          },
+        );
+  }
+
   void _relative() {
     _scan(
-      '$_b(\\d+|bir|yarim)\\s*(dakika|dk|saat|gun|hafta|ay)\\s+sonra$_e',
+      '$_b(\\d+|yarim|$_numberWordAlt)\\s*(dakika|dk|saat|gun|hafta|ay)'
+      '\\s+sonra$_e',
       ParseField.date,
       (m) {
         final unit = m[2]!;
         final half = m[1] == 'yarim';
-        final n = half ? 0 : (m[1] == 'bir' ? 1 : int.parse(m[1]!));
+        final n = half ? 0 : _numberValue(m[1]!)!;
         switch (unit) {
           case 'dakika' || 'dk':
             _setMoment(now.add(Duration(minutes: n)));
@@ -904,8 +1272,8 @@ class _Run {
           ParseField.time,
           (_) => _setTime(0, null, null),
         ) ||
-        _quarter() ||
         _spelledHour() ||
+        _half() ||
         _scan(
           '$_b$_saatBefore$qualifier\\s+$clock$_numSuffix$_e',
           ParseField.time,
@@ -972,40 +1340,147 @@ class _Run {
         );
   }
 
-  /// “10'u çeyrek geçe”, “11'e 10 var”, “akşam 7'ye çeyrek kala”.
+  /// “10'u çeyrek geçe”, “11'e 10 var”, “akşam 7'ye çeyrek kala”,
+  /// “beşi on geçe”, “altıya yirmi kala”, “15 kala 6”. Eksiz saat
+  /// (“saat 3 çeyrek geçe”) yalnızca “saat” veya “çeyrek” ile anlaşılır;
+  /// “on iki gece” on iki gecedir, saat değil.
   bool _quarter() {
-    const prefix =
-        '$_saatBefore(?:(?<q>$_qualifierAlt)\\s+)?(?:saat\\s+)?(?<h>\\d{1,2})';
-    const amount = '(?<n>\\d{1,2}|ceyrek)(?:\\s+(?:dakika|dk))?';
+    const prefix = '$_saatBefore(?:(?<q>$_qualifierAlt)\\s+)?(?<s>saat\\s+)?';
+    const amount =
+        '(?<n>\\d{1,2}|ceyrek|$_numberWordAlt)(?:\\s+(?:dakika|dk))?';
     int? minutes(RegExpMatch m) {
       final n = m.namedGroup('n')!;
-      final value = n == 'ceyrek' ? 15 : int.parse(n);
-      return value > 0 && value < 60 ? value : null;
+      final value = n == 'ceyrek' ? 15 : _numberValue(n);
+      return value != null && value > 0 && value < 60 ? value : null;
     }
 
-    int hourOf(RegExpMatch m) {
-      final h = int.parse(m.namedGroup('h')!);
+    /// Saat ve eki var mı; ek yoksa “saat” veya “çeyrek” gerekir.
+    int? hourOf(RegExpMatch m, Map<String, int> cased) {
+      final digits = m.namedGroup('h');
+      final word = m.namedGroup('hw')?.replaceAll(RegExp(r'\s+'), ' ');
+      int h;
+      bool suffixed;
+      if (digits != null) {
+        h = int.parse(digits);
+        suffixed = m.namedGroup('hs') != null;
+      } else {
+        final c = cased[word];
+        suffixed = c != null;
+        h = c ?? _hourWords[word]!;
+      }
+      if (h < 1 || h > 24) return null;
+      if (!suffixed &&
+          m.namedGroup('s') == null &&
+          m.namedGroup('n') != 'ceyrek') {
+        return null;
+      }
       final q = m.namedGroup('q');
       return q != null ? _applyQualifier(q, h) : _guessAfternoon(h);
     }
 
+    bool before(int h, int n) {
+      final at = (h * 60 - n) % (24 * 60);
+      return _setTime(at ~/ 60, '${at % 60}', null);
+    }
+
     return _scan(
-          "$_b$prefix['’]?(?:u|i|yu|yi)\\s+$amount\\s+gece(?:de)?$_e",
+          // Ek ayrı da yazılabilir: “2 yi çeyrek geçe”.
+          "$_b$prefix(?:(?<h>\\d{1,2})(?<hs>(?:['’]|\\s)?(?:u|i|yu|yi))?"
+          '|(?<hw>$_hourAccAlt))\\s+$amount\\s+gece(?:de)?$_e',
           ParseField.time,
           (m) {
             final n = minutes(m);
-            if (n == null) return false;
-            return _setTime(hourOf(m), '$n', null);
+            final h = hourOf(m, _hourWordsAcc);
+            if (n == null || h == null) return false;
+            return _setTime(h, '$n', null);
           },
         ) ||
         _scan(
-          "$_b$prefix['’]?(?:e|a|ye|ya)\\s+$amount\\s+(?:var|kala)$_e",
+          "$_b$prefix(?:(?<h>\\d{1,2})(?<hs>(?:['’]|\\s)?(?:e|a|ye|ya))?"
+          '|(?<hw>$_hourDatAlt))\\s+$amount\\s+(?<k>var|kala)$_e',
           ParseField.time,
           (m) {
             final n = minutes(m);
-            if (n == null) return false;
-            final at = hourOf(m) * 60 - n;
-            return _setTime((at ~/ 60 + 24) % 24, '${at % 60}', null);
+            final h = hourOf(m, _hourWordsDat);
+            if (n == null || h == null) return false;
+            // “ona iki var” saat değildir; yazıyla saatte “var” çeyrekle olur.
+            if (m.namedGroup('k') == 'var' &&
+                m.namedGroup('hw') != null &&
+                m.namedGroup('n') != 'ceyrek') {
+              return false;
+            }
+            return before(h, n);
+          },
+        ) ||
+        // “saat 2 çeyrekte”, “2'yi çeyrekte”: çeyrek geçe.
+        _scan(
+          "$_b$prefix(?:(?<h>\\d{1,2})(?<hs>(?:['’]|\\s)?(?:u|i|yu|yi))?"
+          '|(?<hw>$_hourAccAlt))\\s+(?<n>ceyrek)(?:te|de|ta|da)$_e',
+          ParseField.time,
+          (m) {
+            final h = hourOf(m, _hourWordsAcc);
+            return h != null && _setTime(h, '15', null);
+          },
+        ) ||
+        // “15 kala 6”, “çeyrek kala beş”
+        _scan(
+          '$_b(?:(?<q>$_qualifierAlt)\\s+)?$amount\\s+kala\\s+(?<s>saat\\s+)?'
+          '(?:(?<h>\\d{1,2})|(?<hw>$_hourWordAlt))$_numSuffix$_e',
+          ParseField.time,
+          (m) {
+            if (_unitFollows(m.end)) return false;
+            final n = minutes(m);
+            final word = m.namedGroup('hw')?.replaceAll(RegExp(r'\s+'), ' ');
+            final raw = word != null
+                ? _hourWords[word]!
+                : int.parse(m.namedGroup('h')!);
+            if (n == null || raw < 1 || raw > 24) return false;
+            final q = m.namedGroup('q');
+            return before(
+              q != null ? _applyQualifier(q, raw) : _guessAfternoon(raw),
+              n,
+            );
+          },
+        );
+  }
+
+  /// “3 buçuk”, “üç buçukta”, “akşam dokuz buçuk”, “saat yarımda” (12:30).
+  bool _half() {
+    const tail = r'bucu(?:k(?:ta|da)?|ga)';
+    const prefix = '$_saatBefore(?:(?<q>$_qualifierAlt)\\s+)?(?:saat\\s+)?';
+    bool set(RegExpMatch m, int h) {
+      if (_unitFollows(m.end)) return false;
+      final q = m.namedGroup('q');
+      return _setTime(
+        q != null ? _applyQualifier(q, h) : _guessAfternoon(h),
+        '30',
+        null,
+      );
+    }
+
+    return _scan(
+          '$_b$prefix(?<h>\\d{1,2})\\s*$tail$_e',
+          ParseField.time,
+          (m) => set(m, int.parse(m.namedGroup('h')!)),
+        ) ||
+        _scan(
+          '$_b$prefix(?<w>$_hourWordAlt)\\s+$tail$_e',
+          ParseField.time,
+          (m) => set(
+            m,
+            _hourWords[m.namedGroup('w')!.replaceAll(RegExp(r'\s+'), ' ')]!,
+          ),
+        ) ||
+        _scan(
+          '$_b$_saatBefore(?:(?:(?<q>$_qualifierAlt)\\s+)(?:saat\\s+)?'
+          '|saat\\s+)yarim(?:da)?$_e(?!\\s+saat)',
+          ParseField.time,
+          (m) {
+            final q = m.namedGroup('q');
+            if (q == null || q == 'gece' || q.startsWith('ogle')) {
+              return _setTime(q == 'gece' ? 0 : 12, '30', null);
+            }
+            return false;
           },
         );
   }

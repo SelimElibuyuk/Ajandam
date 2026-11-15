@@ -7,6 +7,8 @@ import '../data/db/app_database.dart';
 import '../data/repositories/habit_repository.dart';
 import '../data/repositories/item_repository.dart';
 import '../data/repositories/settings_repository.dart';
+import '../data/sync/calendar_sync.dart';
+import '../data/sync/device_calendar.dart';
 import '../domain/dates.dart';
 import '../domain/habit.dart';
 import '../domain/habit_service.dart';
@@ -62,6 +64,18 @@ final weekFocusProvider = NotifierProvider<WeekFocusNotifier, WeekFocus?>(
   WeekFocusNotifier.new,
 );
 
+/// Ana ekran ipuçlarını açma isteği; her istekte sayaç artar.
+class HomeTipsNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void request() => state++;
+}
+
+final homeTipsProvider = NotifierProvider<HomeTipsNotifier, int>(
+  HomeTipsNotifier.new,
+);
+
 final itemServiceProvider = Provider((ref) {
   final service = ItemService(
     store: ref.watch(itemRepositoryProvider),
@@ -74,6 +88,32 @@ final itemServiceProvider = Provider((ref) {
   ref.onDispose(service.dispose);
   return service;
 });
+
+final calendarGatewayProvider = Provider<CalendarGateway>(
+  (ref) => const DeviceCalendar(),
+);
+
+/// Takvim eşitlemesi; girdiler değişince kendiliğinden tetiklenir.
+final calendarSyncProvider = Provider((ref) {
+  final items = ref.watch(itemServiceProvider);
+  final sync = CalendarSync(
+    db: ref.watch(databaseProvider),
+    gateway: ref.watch(calendarGatewayProvider),
+    newId: const Uuid().v7,
+    onLocalChange: items.replan,
+  );
+  items.onChanged = sync.schedule;
+  ref.onDispose(() {
+    items.onChanged = null;
+    sync.dispose();
+  });
+  return sync;
+});
+
+/// Eşitlenen takvimler; boşsa bağlantı yok.
+final calendarsProvider = StreamProvider<List<Calendar>>(
+  (ref) => ref.watch(calendarSyncProvider).watchCalendars(),
+);
 
 final settingsProvider = StreamProvider<AppSettings>(
   (ref) => ref.watch(settingsRepositoryProvider).watch(),

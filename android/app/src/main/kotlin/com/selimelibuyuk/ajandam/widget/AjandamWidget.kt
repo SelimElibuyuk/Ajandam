@@ -63,16 +63,28 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-private val SMALL = DpSize(110.dp, 110.dp)
 private val MEDIUM = DpSize(250.dp, 110.dp)
-private val LARGE = DpSize(250.dp, 250.dp)
 
 private const val ROW_PADDING = 2
 private const val PLUS_SIZE = 40
 private const val PLUS_CLEARANCE = 48
 private const val FOOTER_ID = -1L
 
-/** Satır ölçüleri; 3-5 kelimelik işler ekranda rahat okunsun diye büyük tutulur. */
+/**
+ * Yazı boyutları tek yerde ve her yerleşimde aynıdır; widget Exact modda
+ * çizilir (bkz. AjandamWidget.sizeMode). Boyutlar sp:
+ * sistemin yazı ölçeğini izler, widget ölçüsünden türetilmez.
+ */
+private object Type {
+    const val HEADER = 19f
+    const val COUNTER = 13f
+    const val TITLE = 17f
+    const val TIME = 14f
+    const val EMPTY = 15f
+    const val PLUS = 24f
+}
+
+/** Satır ölçüleri (dp); 3-5 kelimelik işler ekranda rahat okunsun diye büyük tutulur. */
 private class Metrics(
     val titleSize: Float,
     val timeSize: Float,
@@ -82,8 +94,9 @@ private class Metrics(
     val sidePadding: Float,
 )
 
-private val wideMetrics = Metrics(17f, 14f, 38f, 22f, 40f, 28f)
-private val compactMetrics = Metrics(16f, 16f, 34f, 21f, 38f, 22f)
+// Yalnızca kenar boşluğu yerleşime göre değişir; yazı ve işaret ölçüleri ortak.
+private val wideMetrics = Metrics(Type.TITLE, Type.TIME, 38f, 22f, 40f, 28f)
+private val compactMetrics = Metrics(Type.TITLE, Type.TIME, 38f, 22f, 40f, 22f)
 
 private val turkish = Locale.forLanguageTag("tr")
 private val dayFormat = DateTimeFormatter.ofPattern("d MMMM", turkish)
@@ -123,7 +136,11 @@ private suspend fun refreshAll(context: Context) {
 
 class AjandamWidget : GlanceAppWidget() {
     override val stateDefinition = HomeWidgetGlanceStateDefinition()
-    override val sizeMode = SizeMode.Responsive(setOf(SMALL, MEDIUM, LARGE))
+    // Responsive modda başlatıcı (POCO/MIUI) hazır kalıplardan birini seçip
+    // widget'a sığdırmak için ölçekleyebiliyor; yazılar bu yüzden zaman zaman
+    // büyüyüp küçülüyordu. Exact modda görünüm widget'ın gerçek ölçüsüyle
+    // çizilir, ölçeklenecek bir şey kalmaz (alışkanlık widget'ı da böyle).
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
@@ -191,7 +208,7 @@ private fun Content(context: Context, snapshot: Snapshot) {
                 ) {
                     Text(
                         "+",
-                        style = TextStyle(color = ColorProvider(colors.onAccent), fontSize = 24.sp),
+                        style = TextStyle(color = ColorProvider(colors.onAccent), fontSize = Type.PLUS.sp),
                     )
                 }
             }
@@ -221,14 +238,14 @@ private fun SmallContent(
                 style =
                     TextStyle(
                         color = ColorProvider(colors.text),
-                        fontSize = 18.sp,
+                        fontSize = Type.HEADER.sp,
                         fontFamily = FontFamily.Serif,
                     ),
             )
             if (remaining > 0) {
                 Text(
                     "$remaining",
-                    style = TextStyle(color = ColorProvider(colors.accentText), fontSize = 15.sp),
+                    style = TextStyle(color = ColorProvider(colors.accentText), fontSize = Type.COUNTER.sp),
                 )
             }
         }
@@ -259,13 +276,13 @@ private fun WideContent(
                 style =
                     TextStyle(
                         color = ColorProvider(colors.text),
-                        fontSize = 19.sp,
+                        fontSize = Type.HEADER.sp,
                         fontFamily = FontFamily.Serif,
                     ),
             )
             Text(
                 remainingLabel(remaining, items.isEmpty()),
-                style = TextStyle(color = ColorProvider(colors.muted), fontSize = 13.sp),
+                style = TextStyle(color = ColorProvider(colors.muted), fontSize = Type.COUNTER.sp),
             )
         }
         Spacer(GlanceModifier.height(4.dp))
@@ -292,7 +309,7 @@ private fun ItemList(
         items.isEmpty() ->
             Text(
                 "Bugün boş.",
-                style = TextStyle(color = ColorProvider(colors.muted), fontSize = 15.sp),
+                style = TextStyle(color = ColorProvider(colors.muted), fontSize = Type.EMPTY.sp),
             )
         needed <= size.height.value - header - PLUS_CLEARANCE ->
             items.forEach { item -> ItemRow(context, item, now, colors, compact) }

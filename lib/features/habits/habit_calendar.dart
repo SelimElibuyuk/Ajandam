@@ -12,8 +12,8 @@ import 'habit_form.dart';
 
 final _weekdayFormat = DateFormat('EEE', 'tr');
 
-Color habitColor(Habit habit) =>
-    Color(habitColors[habit.color % habitColors.length]);
+Color habitColor(Habit habit, AppColors c) =>
+    Color(habitColorFor(habit.color, monochrome: c.monochrome, dark: c.dark));
 
 /// Dondurulmuş günlerin buz rengi; açık temada simge biraz koyulaşır.
 const _ice = Color(0xFF7FB8E0);
@@ -61,7 +61,7 @@ class HabitTabs extends ConsumerWidget {
           for (final habit in habits)
             _Tab(
               label: habit.title,
-              color: habitColor(habit),
+              color: habitColor(habit, c),
               selected: selected?.id == habit.id,
               onTap: () => notifier.select(habit.id),
               onLongPress: () async {
@@ -251,7 +251,7 @@ class _HabitDay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final color = habitColor(habit);
+    final color = habitColor(habit, c);
     final count = history.countOn(day);
     final done = count >= habit.goal;
     final frozen = history.frozenOn(day);
@@ -594,7 +594,7 @@ class _TodayButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final color = habitColor(habit);
+    final color = habitColor(habit, c);
     final done = count >= habit.goal;
     final action = done
         ? 'Geri al'

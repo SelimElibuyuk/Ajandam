@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
 import '../../domain/dates.dart';
 import '../../domain/item.dart';
 import '../../domain/recurrence.dart';
@@ -51,7 +52,12 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
       : TimeOfDay.fromDateTime(widget.item.start!);
   late int _duration =
       widget.item.end?.difference(widget.item.start!).inMinutes ?? 0;
-  late int? _reminder = widget.item.reminderMin;
+  // Saatli girdide başlangıçtan önceki dakika, saatsiz görevde gün
+  // başına göre dakika (boşsa ayardaki varsayılan); aynı alanda saklanır.
+  late int? _reminder = widget.item.isTimed ? widget.item.reminderMin : null;
+  late int? _untimedReminder = widget.item.isTimed
+      ? null
+      : widget.item.reminderMin;
   late bool _important = widget.item.important;
   late ItemKind _kind = widget.item.kind;
   late DateTime? _endDay = widget.item.endDay;
@@ -136,6 +142,16 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
     if (picked != null) setState(() => _reminder = picked.$1);
   }
 
+  Future<void> _pickUntimedReminder(int fallback) async {
+    final picked = await pickUntimedReminder(
+      context,
+      _untimedReminder ?? fallback,
+    );
+    if (picked == null) return;
+    // Varsayılanla aynıysa görev ayarı izlemeye devam eder.
+    setState(() => _untimedReminder = picked == fallback ? null : picked);
+  }
+
   Future<void> _save() async {
     final title = _title.text.trim();
     if (title.isEmpty) {
@@ -161,7 +177,9 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
       endDay: _isEvent && start == null && end != null && end.isAfter(_day)
           ? end
           : null,
-      reminderMin: start == null ? null : _reminder,
+      reminderMin: start != null
+          ? _reminder
+          : (_isEvent ? null : _untimedReminder),
       important: _important,
       recurrence: _recurrence,
     );
@@ -234,6 +252,29 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          if (widget.item.readOnly)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: context.colors.muted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Google Takvim'de salt okunur; değişiklikler yalnızca "
+                      "Ajandam'da kalır.",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.colors.muted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
@@ -347,6 +388,19 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
               leading: const Icon(Icons.notifications_none),
               title: Text(reminderLabel(_reminder)),
               onTap: _pickReminder,
+            )
+          else if (!_isEvent)
+            ListTile(
+              leading: const Icon(Icons.notifications_none),
+              title: Text(
+                untimedReminderLabel(
+                  _untimedReminder ?? settings.untimedReminderMin,
+                ),
+              ),
+              subtitle: _untimedReminder == null
+                  ? const Text('Varsayılan')
+                  : null,
+              onTap: () => _pickUntimedReminder(settings.untimedReminderMin),
             ),
           SwitchListTile(
             secondary: const Icon(Icons.flag_outlined),

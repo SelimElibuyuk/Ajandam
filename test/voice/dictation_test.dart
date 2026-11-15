@@ -33,6 +33,8 @@ void main() {
   late String text;
   late List<bool> states;
   late List<VoiceError> errors;
+  late DateTime clock;
+  void wait(int ms) => clock = clock.add(Duration(milliseconds: ms));
 
   const restart = Duration(milliseconds: 5);
   Future<void> waitRestart() =>
@@ -43,6 +45,7 @@ void main() {
     text = '';
     states = [];
     errors = [];
+    clock = DateTime(2026);
     dictation = Dictation(
       voice,
       onText: (t) => text = t,
@@ -50,6 +53,7 @@ void main() {
       onError: errors.add,
       silenceLimit: const Duration(milliseconds: 200),
       restartDelay: restart,
+      now: () => clock,
     );
   });
   tearDown(() => dictation.dispose());
@@ -80,6 +84,58 @@ void main() {
     voice.onText!('yarın saat dörtte toplantı', false);
     voice.onText!('raporu', false);
     expect(text, 'yarın saat dörtte toplantı raporu');
+  });
+
+  test('duraklamadan sonra gelen uzun cümle önceki parçayı silmez', () async {
+    await dictation.start('');
+    voice.onText!('yarın saat dörtte', false);
+    wait(300);
+    voice.onText!('yarın saat dörtte toplantı', false);
+    wait(2500);
+    voice.onText!('müdürle ofiste konuşulacak', false);
+    wait(300);
+    voice.onText!('müdürle ofiste konuşulacak konular', false);
+    expect(
+      text,
+      'yarın saat dörtte toplantı müdürle ofiste konuşulacak konular',
+    );
+  });
+
+  test(
+    'duraklamadan sonra aynı kelimeyle başlayan yeni cümle eklenir',
+    () async {
+      await dictation.start('');
+      voice.onText!('saat üçte dişçi', false);
+      wait(2000);
+      voice.onText!('saat beşte spor salonu', false);
+      expect(text, 'saat üçte dişçi saat beşte spor salonu');
+    },
+  );
+
+  test('duraklamadan sonra cümle sürerse tek parça kalır', () async {
+    await dictation.start('');
+    voice.onText!('market alışverişi', false);
+    wait(2000);
+    voice.onText!('market alışverişi süt ekmek', false);
+    expect(text, 'market alışverişi süt ekmek');
+  });
+
+  test('hızlı düzeltmede son kelime değişebilir', () async {
+    await dictation.start('');
+    voice.onText!('yarın saat üç', false);
+    wait(200);
+    voice.onText!('yarın saat 3 te', false);
+    expect(text, 'yarın saat 3 te');
+  });
+
+  test('önceki oturumun geç sonucu ikinci kez yazılmaz', () async {
+    await dictation.start('');
+    voice.onText!('ilaç al', true);
+    voice.onDone!();
+    await waitRestart();
+    voice.onText!('ilaç al', true);
+    voice.onText!('akşam', false);
+    expect(text, 'ilaç al akşam');
   });
 
   test('boş ara sonuç yazılanı silmez', () async {
